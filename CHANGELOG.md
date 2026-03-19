@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.1] - 2026-03-18
+
+### Changed
+- Added a new bundled extension icon branded as **LMStudio Co-Pilot**
+- Wired the icon into the extension manifest and VSIX package output
+
 ## [0.1.0] - 2026-03-18
 
 ### Added
