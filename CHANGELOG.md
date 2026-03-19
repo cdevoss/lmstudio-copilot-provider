@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.2] - 2026-03-19
+
+### Changed
+- Replaced the text-heavy extension icon with a cleaner LM-style monogram mark for better small-size readability
+
 ## [0.1.1] - 2026-03-18
 
 ### Changed

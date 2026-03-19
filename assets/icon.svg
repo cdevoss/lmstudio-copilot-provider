@@ -1,23 +1,32 @@
 <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="28" y1="24" x2="228" y2="232" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="24" y1="20" x2="232" y2="236" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0F172A"/>
-      <stop offset="0.55" stop-color="#1D4ED8"/>
+      <stop offset="0.52" stop-color="#1D4ED8"/>
       <stop offset="1" stop-color="#7C3AED"/>
     </linearGradient>
   </defs>
 
-  <rect x="18" y="18" width="220" height="220" rx="46" fill="url(#bg)"/>
-  <rect x="32" y="32" width="192" height="192" rx="34" fill="#0B1226" fill-opacity="0.18" stroke="#B8C3FF" stroke-opacity="0.30" stroke-width="2"/>
+  <rect x="18" y="18" width="220" height="220" rx="50" fill="url(#bg)"/>
+  <rect x="30" y="30" width="196" height="196" rx="38" fill="#081122" fill-opacity="0.20" stroke="#C7D2FE" stroke-opacity="0.24" stroke-width="2"/>
 
-  <rect x="58" y="58" width="140" height="8" rx="4" fill="#E2E8F0" fill-opacity="0.90"/>
-  <rect x="58" y="188" width="92" height="8" rx="4" fill="#E2E8F0" fill-opacity="0.80"/>
-  <circle cx="189" cy="62" r="10" fill="#22D3EE"/>
+  <!-- Orbit ring -->
+  <circle cx="128" cy="128" r="64" fill="none" stroke="#C7D2FE" stroke-opacity="0.24" stroke-width="10"/>
+  <circle cx="128" cy="128" r="64" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="2"/>
 
-  <path d="M68 148C82 129 103 118 128 118C153 118 174 129 188 148" stroke="#93C5FD" stroke-width="6" stroke-linecap="round"/>
-  <path d="M86 146V111" stroke="#C084FC" stroke-width="6" stroke-linecap="round"/>
-  <path d="M170 146V111" stroke="#C084FC" stroke-width="6" stroke-linecap="round"/>
+  <!-- LM monogram -->
+  <rect x="84" y="84" width="14" height="76" rx="7" fill="#F8FAFC"/>
+  <rect x="84" y="146" width="36" height="14" rx="7" fill="#F8FAFC"/>
+  <rect x="108" y="92" width="12" height="68" rx="6" fill="#EAF0FF"/>
+  <rect x="136" y="92" width="12" height="68" rx="6" fill="#EAF0FF"/>
+  <polygon points="114,96 128,124 142,96 151,101 132,138 124,138 105,101" fill="#EAF0FF"/>
 
-  <text x="128" y="109" text-anchor="middle" font-family="DejaVu Sans, Segoe UI, Arial, sans-serif" font-size="33" font-weight="800" fill="#F8FAFC">LMStudio</text>
-  <text x="128" y="156" text-anchor="middle" font-family="DejaVu Sans, Segoe UI, Arial, sans-serif" font-size="25" font-weight="700" fill="#E8EDFF">Co-Pilot</text>
+  <!-- Copilot spark / node -->
+  <circle cx="184" cy="92" r="12" fill="#22D3EE"/>
+  <path d="M184 70V52" stroke="#67E8F9" stroke-width="6" stroke-linecap="round"/>
+  <path d="M202 92H220" stroke="#67E8F9" stroke-width="6" stroke-linecap="round"/>
+  <path d="M196.7 79.3L209.5 66.5" stroke="#67E8F9" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- subtle terminal baseline -->
+  <path d="M78 190H178" stroke="#E2E8F0" stroke-opacity="0.70" stroke-width="8" stroke-linecap="round"/>
 </svg>
