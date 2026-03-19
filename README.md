@@ -1,18 +1,28 @@
 # LM Studio for Copilot Chat
 
-A VS Code extension that adds LM Studio language models to VS Code's Copilot Chat interface.
+Run local LM Studio models inside VS Code Copilot Chat with streaming responses, tool calling, terminal execution, filesystem tools, and optional image generation.
+
+## What it does
+
+- Adds LM Studio-hosted chat models to the Copilot Chat model picker
+- Streams responses from LM Studio into VS Code chat
+- Exposes a small built-in toolset for terminal and filesystem actions
+- Supports tool-calling friendly local models with configurable tool budgeting
+- Supports optional image generation through either A1111 or DALL-E-compatible APIs
 
 ## Features
 
 - 🔌 **Auto-discovery**: Automatically detects models loaded in LM Studio
 - 💬 **Chat Integration**: Use LM Studio models directly in VS Code's chat interface
 - 🔄 **Streaming**: Real-time streaming responses
+- 🛠️ **Tool Calling**: Built-in terminal, file, directory, search, and image generation tools
 - 🖥️ **Integrated Terminal Launch**: Start LM Studio server from VS Code terminal
-- ⚙️ **Configurable**: Customize server URL, timeouts, and more
+- 🖼️ **Optional Image Generation**: Route image requests to Automatic1111 or DALL-E-compatible endpoints
+- ⚙️ **Configurable**: Customize server URL, timeouts, tool budget, and more
 
 ## Requirements
 
-- VS Code 1.90.0 or later
+- VS Code 1.104.0 or later
 - [LM Studio](https://lmstudio.ai/) running with a model loaded
 - LM Studio's local server enabled (default: `http://localhost:1234`)
 
@@ -30,22 +40,29 @@ A VS Code extension that adds LM Studio language models to VS Code's Copilot Cha
 
 This extension contributes the following settings:
 
-* `lmstudio-copilot.serverUrl`: LM Studio server URL (default: `http://localhost:1234`)
-* `lmstudio-copilot.launchCommand`: Command to launch LM Studio server in integrated terminal (example: `lms server start`)
-* `lmstudio-copilot.terminalName`: Terminal name used to run the server (default: `LM Studio Server`)
-* `lmstudio-copilot.autoStartServer`: Auto-run `launchCommand` when extension activates (default: `false`)
-* `lmstudio-copilot.startupWaitMs`: Wait time before connection check after terminal start (default: `3000`)
-* `lmstudio-copilot.enableTerminalTool`: Allow model-invoked terminal commands (default: `true`)
-* `lmstudio-copilot.terminalToolName`: Terminal name for model tool commands (default: `LM Studio Tool Terminal`)
-* `lmstudio-copilot.autoRefreshModels`: Automatically refresh models on startup (default: `true`)
-* `lmstudio-copilot.requestTimeout`: Request timeout in milliseconds (default: `60000`)
+- `lmstudio-copilot.serverUrl`: LM Studio server URL (default: `http://localhost:1234`)
+- `lmstudio-copilot.apiKey`: Optional API key for LM Studio-compatible servers
+- `lmstudio-copilot.launchCommand`: Command to launch LM Studio server in integrated terminal (example: `lms server start`)
+- `lmstudio-copilot.terminalName`: Terminal name used to run the server (default: `LM Studio Server`)
+- `lmstudio-copilot.autoStartServer`: Auto-run `launchCommand` when extension activates (default: `false`)
+- `lmstudio-copilot.startupWaitMs`: Wait time before connection check after terminal start (default: `3000`)
+- `lmstudio-copilot.enableTerminalTool`: Allow model-invoked terminal commands (default: `true`)
+- `lmstudio-copilot.terminalToolName`: Terminal name for model tool commands (default: `LM Studio Tool Terminal`)
+- `lmstudio-copilot.autoRefreshModels`: Automatically refresh models on startup (default: `true`)
+- `lmstudio-copilot.requestTimeout`: Request timeout in milliseconds (default: `60000`)
+- `lmstudio-copilot.maxTools`: Maximum number of tools exposed to the model per request (default: `20`)
+- `lmstudio-copilot.enableToolCalling`: Enable tool calling support when the model can use tools
+- `lmstudio-copilot.imageGenBackend`: Choose `dalle` or `a1111`
+- `lmstudio-copilot.imageGenEndpointUrl`: Base URL for the selected image generation backend
+- `lmstudio-copilot.imageGenModel`: Image model name for DALL-E-compatible backends
+- `lmstudio-copilot.imageGenWidth`, `lmstudio-copilot.imageGenHeight`, `lmstudio-copilot.imageGenSteps`, `lmstudio-copilot.imageGenOutputDir`: Image defaults
 
 ## Commands
 
-* `LM Studio: Refresh Available Models` - Refresh the list of available models from LM Studio
-* `LM Studio: Start Server in Integrated Terminal` - Starts LM Studio server command in VS Code terminal
-* `LM Studio: Stop Server Terminal` - Stops the dedicated LM Studio terminal
-* `LM Studio: Check Server Connection` - Test connection to LM Studio server
+- `LM Studio: Refresh Available Models` - Refresh the list of available models from LM Studio
+- `LM Studio: Start Server in Integrated Terminal` - Starts LM Studio server command in VS Code terminal
+- `LM Studio: Stop Server Terminal` - Stops the dedicated LM Studio terminal
+- `LM Studio: Check Server Connection` - Test connection to LM Studio server
 
 ## Usage
 
@@ -62,6 +79,25 @@ The extension now exposes a chat tool named `#runInTerminal`.
 - In chat, ask the model to use `#runInTerminal` to run commands (for example, compile or test commands).
 - Commands run in a dedicated integrated terminal (`lmstudio-copilot.terminalToolName`).
 - Invocations are automatically executed without a confirmation prompt.
+
+### Tool budget for local models
+
+Many local models become unreliable when given dozens of tool schemas at once, especially when MCP servers add very large tool inventories.
+
+- By default, the extension sends at most `20` tools per request.
+- Tools already used in the current conversation are prioritized.
+- Set `lmstudio-copilot.maxTools` to `0` to disable the limit.
+
+This helps reduce hallucinated tool names, malformed inputs, and context-window bloat.
+
+### Image generation
+
+The built-in `lmstudio_generate_image` tool supports:
+
+- **Automatic1111 / Stable Diffusion WebUI** via `lmstudio-copilot.imageGenBackend = a1111`
+- **DALL-E-compatible APIs** via `lmstudio-copilot.imageGenBackend = dalle`
+
+Set `lmstudio-copilot.imageGenEndpointUrl` to your image server URL.
 
 ## Troubleshooting
 

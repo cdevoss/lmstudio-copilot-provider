@@ -1,9 +1,18 @@
 {
   "name": "lmstudio-copilot-provider",
   "displayName": "LM Studio for Copilot Chat",
-  "description": "Adds LM Studio language models to VS Code Copilot Chat",
+  "description": "Use local LM Studio models inside VS Code Copilot Chat with streaming, tool calling, and optional image generation.",
   "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "publisher": "yoy123",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yoy123/lmstudio-copilot-provider.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yoy123/lmstudio-copilot-provider/issues"
+  },
+  "homepage": "https://github.com/yoy123/lmstudio-copilot-provider#readme",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -34,7 +43,7 @@
         },
         "lmstudio-copilot.apiKey": {
           "type": "string",
-            "default": "",
+          "default": "",
           "description": "API key for LM Studio server authentication"
         },
         "lmstudio-copilot.autoRefreshModels": {
@@ -368,10 +377,5 @@
     "eslint": "^8.56.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.3.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/lmstudio-copilot-provider"
-  },
-  "license": "MIT"
+  }
 }
