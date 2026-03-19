@@ -1,0 +1,377 @@
+{
+  "name": "lmstudio-copilot-provider",
+  "displayName": "LM Studio for Copilot Chat",
+  "description": "Adds LM Studio language models to VS Code Copilot Chat",
+  "version": "0.1.0",
+  "publisher": "your-publisher-name",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "keywords": [
+    "lm studio",
+    "copilot",
+    "chat",
+    "language model",
+    "ai",
+    "llm"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "LM Studio Copilot Provider",
+      "properties": {
+        "lmstudio-copilot.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:1234",
+          "description": "LM Studio server URL"
+        },
+        "lmstudio-copilot.apiKey": {
+          "type": "string",
+            "default": "",
+          "description": "API key for LM Studio server authentication"
+        },
+        "lmstudio-copilot.autoRefreshModels": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh available models on startup"
+        },
+        "lmstudio-copilot.requestTimeout": {
+          "type": "number",
+          "default": 60000,
+          "description": "Request timeout in milliseconds"
+        },
+        "lmstudio-copilot.launchCommand": {
+          "type": "string",
+          "default": "",
+          "description": "Command to launch LM Studio server in VS Code integrated terminal (example: lms server start)"
+        },
+        "lmstudio-copilot.terminalName": {
+          "type": "string",
+          "default": "LM Studio Server",
+          "description": "Name of the integrated terminal used for LM Studio server"
+        },
+        "lmstudio-copilot.autoStartServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically run launchCommand in integrated terminal when extension starts"
+        },
+        "lmstudio-copilot.enableTerminalTool": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow LM Studio model tool calls to run commands in VS Code integrated terminal"
+        },
+        "lmstudio-copilot.terminalToolName": {
+          "type": "string",
+          "default": "LM Studio Tool Terminal",
+          "description": "Integrated terminal name used by model tool commands"
+        },
+        "lmstudio-copilot.terminalToolTimeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "Timeout in milliseconds for model-invoked terminal commands"
+        },
+        "lmstudio-copilot.startupWaitMs": {
+          "type": "number",
+          "default": 3000,
+          "description": "Milliseconds to wait before checking LM Studio connection after server start"
+        },
+        "lmstudio-copilot.maxInputTokens": {
+          "type": "number",
+          "default": 131072,
+          "description": "Maximum input tokens (context window size). Default is 128k."
+        },
+        "lmstudio-copilot.maxOutputTokens": {
+          "type": "number",
+          "default": 16384,
+          "description": "Maximum output tokens. Default is 16k."
+        },
+        "lmstudio-copilot.maxTools": {
+          "type": "number",
+          "default": 20,
+          "description": "Maximum number of tools to send to the model per request. Local models struggle with many tools (86+ is common with MCP servers). Tools used in the current conversation are always included; the rest are prioritized by name simplicity. Set to 0 for no limit."
+        },
+        "lmstudio-copilot.enableToolCalling": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable tool calling support for models that support it (e.g., Qwen, Llama 3.1+, Mistral)."
+        },
+        "lmstudio-copilot.imageGenBackend": {
+          "type": "string",
+          "enum": ["dalle", "a1111"],
+          "default": "dalle",
+          "description": "Image generation backend. 'dalle' = OpenAI DALL-E compatible API (also works with LM Studio image models). 'a1111' = Automatic1111 / Stable Diffusion Web UI."
+        },
+        "lmstudio-copilot.imageGenEndpointUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL for the image generation server. LM Studio does NOT have an image generation endpoint — leave blank to see setup instructions. For DALL-E (OpenAI): https://api.openai.com. For A1111/Stable Diffusion: typically http://localhost:7860."
+        },
+        "lmstudio-copilot.imageGenModel": {
+          "type": "string",
+          "default": "dall-e-3",
+          "description": "Image model to use for DALL-E backend (e.g. dall-e-3, dall-e-2)."
+        },
+        "lmstudio-copilot.imageGenWidth": {
+          "type": "number",
+          "default": 1024,
+          "description": "Default image width in pixels."
+        },
+        "lmstudio-copilot.imageGenHeight": {
+          "type": "number",
+          "default": 1024,
+          "description": "Default image height in pixels."
+        },
+        "lmstudio-copilot.imageGenSteps": {
+          "type": "number",
+          "default": 20,
+          "description": "Default number of diffusion steps (A1111 backend only)."
+        },
+        "lmstudio-copilot.imageGenOutputDir": {
+          "type": "string",
+          "default": "",
+          "description": "Directory to save generated images. Workspace-relative or absolute. Defaults to 'generated-images/' inside the workspace."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "lmstudio-copilot.refreshModels",
+        "title": "LM Studio: Refresh Available Models"
+      },
+      {
+        "command": "lmstudio-copilot.startServer",
+        "title": "LM Studio: Start Server in Integrated Terminal"
+      },
+      {
+        "command": "lmstudio-copilot.stopServer",
+        "title": "LM Studio: Stop Server Terminal"
+      },
+      {
+        "command": "lmstudio-copilot.checkConnection",
+        "title": "LM Studio: Check Server Connection"
+      }
+    ],
+    "languageModelChatProviders": [
+      {
+        "vendor": "lmstudio",
+        "displayName": "LM Studio"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "lmstudio_run_in_terminal",
+        "toolReferenceName": "runInTerminal",
+        "displayName": "Run In Terminal",
+        "modelDescription": "Executes a shell command in VS Code integrated terminal and returns its full stdout, stderr, and exit code. Use for build, test, install, lint, and diagnostics commands.",
+        "userDescription": "Runs a shell command and returns the output to the model.",
+        "canBeReferencedInPrompt": true,
+        "tags": ["terminal", "shell", "command", "execution"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Shell command to execute"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory (absolute or workspace-relative). Defaults to workspace root."
+            }
+          },
+          "required": ["command"]
+        }
+      },
+      {
+        "name": "lmstudio_read_file",
+        "toolReferenceName": "readFile",
+        "displayName": "Read File",
+        "modelDescription": "Reads the contents of a file from disk and returns them with line numbers. Accepts workspace-relative or absolute paths. Optionally specify a line range.",
+        "userDescription": "Reads a file and returns its contents to the model.",
+        "canBeReferencedInPrompt": true,
+        "tags": ["file", "read", "filesystem"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "File path (absolute or workspace-relative)"
+            },
+            "startLine": {
+              "type": "number",
+              "description": "First line to read (1-based, inclusive). Omit for beginning of file."
+            },
+            "endLine": {
+              "type": "number",
+              "description": "Last line to read (1-based, inclusive). Omit for end of file."
+            }
+          },
+          "required": ["path"]
+        }
+      },
+      {
+        "name": "lmstudio_write_file",
+        "toolReferenceName": "writeFile",
+        "displayName": "Write File",
+        "modelDescription": "Writes or overwrites a file on disk with the provided content. Creates parent directories if needed. Use when you want to create or modify a file.",
+        "userDescription": "Writes content to a file on disk.",
+        "canBeReferencedInPrompt": true,
+        "tags": ["file", "write", "filesystem", "edit"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "File path (absolute or workspace-relative)"
+            },
+            "content": {
+              "type": "string",
+              "description": "Full content to write to the file"
+            },
+            "createDirectories": {
+              "type": "boolean",
+              "description": "Create parent directories if they don't exist. Defaults to true."
+            }
+          },
+          "required": ["path", "content"]
+        }
+      },
+      {
+        "name": "lmstudio_list_directory",
+        "toolReferenceName": "listDirectory",
+        "displayName": "List Directory",
+        "modelDescription": "Lists the contents of a directory. Returns files and folders with icons. Can recurse into subdirectories up to a configurable depth. Skips node_modules, .git, dist etc.",
+        "userDescription": "Lists files and folders in a directory.",
+        "canBeReferencedInPrompt": true,
+        "tags": ["file", "directory", "filesystem", "ls"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Directory path (absolute or workspace-relative). Defaults to workspace root."
+            },
+            "recursive": {
+              "type": "boolean",
+              "description": "Recurse into subdirectories. Defaults to false."
+            },
+            "maxDepth": {
+              "type": "number",
+              "description": "Maximum recursion depth when recursive is true. Defaults to 4."
+            }
+          }
+        }
+      },
+      {
+        "name": "lmstudio_search_files",
+        "toolReferenceName": "searchFiles",
+        "displayName": "Search Files",
+        "modelDescription": "Searches for a text pattern or regex across all files in the workspace. Returns matching lines with file path, line number, and surrounding context. Uses ripgrep when available for speed.",
+        "userDescription": "Searches for text or patterns across workspace files.",
+        "canBeReferencedInPrompt": true,
+        "tags": ["search", "grep", "filesystem", "find"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Text or regex pattern to search for"
+            },
+            "glob": {
+              "type": "string",
+              "description": "Glob pattern to restrict which files are searched (e.g. '**/*.ts')"
+            },
+            "isRegex": {
+              "type": "boolean",
+              "description": "Treat pattern as a regular expression. Defaults to false."
+            },
+            "caseSensitive": {
+              "type": "boolean",
+              "description": "Case-sensitive matching. Defaults to false."
+            },
+            "maxResults": {
+              "type": "number",
+              "description": "Maximum number of matches to return. Defaults to 50."
+            },
+            "contextLines": {
+              "type": "number",
+              "description": "Number of context lines to show around each match. Defaults to 2."
+            }
+          },
+          "required": ["pattern"]
+        }
+      },
+      {
+        "name": "lmstudio_generate_image",
+        "toolReferenceName": "generateImage",
+        "displayName": "Generate Image",
+        "modelDescription": "Generates an image from a text prompt using a configured image generation backend (DALL-E compatible API or Automatic1111 Stable Diffusion). Saves the image to disk and displays it inline in chat. Supports optional negative prompt, dimensions, and output path.",
+        "userDescription": "Generates an image from a text description.",
+        "canBeReferencedInPrompt": true,
+        "tags": ["image", "generate", "dalle", "stable-diffusion", "ai"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "Text description of the image to generate"
+            },
+            "negativePrompt": {
+              "type": "string",
+              "description": "Things to exclude from the image (A1111 backend only)"
+            },
+            "width": {
+              "type": "number",
+              "description": "Image width in pixels. Defaults to lmstudio-copilot.imageGenWidth setting."
+            },
+            "height": {
+              "type": "number",
+              "description": "Image height in pixels. Defaults to lmstudio-copilot.imageGenHeight setting."
+            },
+            "steps": {
+              "type": "number",
+              "description": "Diffusion steps (A1111 backend only). Defaults to lmstudio-copilot.imageGenSteps setting."
+            },
+            "savePath": {
+              "type": "string",
+              "description": "Workspace-relative or absolute path to save the image. Defaults to generated-images/<timestamp>.png."
+            }
+          },
+          "required": ["prompt"]
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && node esbuild.js",
+    "check-types": "tsc --noEmit",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && node esbuild.js --production",
+    "lint": "eslint src",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.104.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/lmstudio-copilot-provider"
+  },
+  "license": "MIT"
+}

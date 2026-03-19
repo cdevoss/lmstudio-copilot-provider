@@ -1,0 +1,435 @@
+import * as vscode from 'vscode';
+import {
+  LMStudioConfig,
+  LMStudioModel,
+  LMStudioRawModel,
+  ChatMessage,
+  ChatCompletionRequest,
+  ChatCompletionChunk,
+  ChatTool,
+  ToolCall,
+  getConfig,
+} from './types';
+
+// ────────────────────────────────────────────────────────────────────────────
+// Stream parts — what we yield back to the provider
+// ────────────────────────────────────────────────────────────────────────────
+
+export type StreamPart =
+  | { text: string }
+  | { toolCall: ToolCall };
+
+// XML tool-call pattern: <tool_call>{"name":"fn","arguments":{…}}</tool_call>
+const XML_TOOL_CALL_RE = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+
+/**
+ * Low-level HTTP streaming client for LM Studio's OpenAI-compatible API.
+ *
+ * Design principles (from studying VS Code's LanguageModelChatProvider API):
+ *   - Stream text to the caller immediately — no unnecessary buffering.
+ *   - Buffer ONLY when we see the start of a <tool_call> tag.
+ *   - Once a tool call is yielded, suppress all further text in that turn
+ *     (models often append filler like "I'm ready to help!" after tool calls).
+ *   - Strip <think>…</think> reasoning traces statefully across SSE chunks.
+ *   - Handle 3 tool-call formats: OpenAI delta.tool_calls, XML <tool_call>,
+ *     and legacy <|channel|>…<|message|> format.
+ */
+export class LMStudioClient {
+  private abortControllers = new Map<string, AbortController>();
+
+  constructor(private outputChannel?: vscode.OutputChannel) {}
+
+  private log(msg: string): void {
+    this.outputChannel?.appendLine(`[Client] ${msg}`);
+  }
+
+  private getConfig(): LMStudioConfig {
+    return getConfig();
+  }
+
+  // ── Connection check ──────────────────────────────────────────────────
+
+  async checkConnection(): Promise<boolean> {
+    const config = this.getConfig();
+    this.log(`Checking connection to ${config.serverUrl}...`);
+    try {
+      const r = await fetch(`${config.serverUrl}/api/v1/models`, {
+        method: 'GET',
+        headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
+        signal: AbortSignal.timeout(5000),
+      });
+      this.log(`Connection check: ${r.status}`);
+      return r.ok;
+    } catch (e) {
+      this.log(`Connection check failed: ${e}`);
+      return false;
+    }
+  }
+
+  // ── Model listing ─────────────────────────────────────────────────────
+
+  async getModels(): Promise<LMStudioModel[]> {
+    const config = this.getConfig();
+    this.log(`Fetching models from ${config.serverUrl}/api/v1/models...`);
+    try {
+      const r = await fetch(`${config.serverUrl}/api/v1/models`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        },
+        signal: AbortSignal.timeout(config.requestTimeout),
+      });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      const raw = await r.json();
+      this.log(`Raw models: ${JSON.stringify(raw).slice(0, 500)}`);
+
+      let models: LMStudioModel[];
+      if (raw?.models && Array.isArray(raw.models)) {
+        const rawModels = (raw.models as LMStudioRawModel[]).filter(m => m.type !== 'embedding');
+        models = rawModels.map(m => ({
+          id: m.key, object: 'model', owned_by: m.publisher || 'unknown',
+          type: m.type, publisher: m.publisher, display_name: m.display_name,
+          architecture: m.architecture, max_context_length: m.max_context_length,
+          capabilities: m.capabilities,
+        }));
+        this.log(`Filtered ${raw.models.length} -> ${models.length} LLM models`);
+      } else if (Array.isArray(raw)) {
+        models = raw;
+      } else if (raw?.data && Array.isArray(raw.data)) {
+        models = raw.data;
+      } else {
+        this.log(`Unexpected response shape: ${Object.keys(raw)}`);
+        models = [];
+      }
+      this.log(`Found ${models.length} models: ${models.map(m => m.id).join(', ')}`);
+      return models;
+    } catch (e) {
+      this.log(`Error fetching models: ${e}`);
+      return [];
+    }
+  }
+
+  // ── Streaming chat completion ─────────────────────────────────────────
+
+  async *streamChatCompletionWithTools(
+    modelId: string,
+    messages: ChatMessage[],
+    options: {
+      temperature?: number;
+      maxTokens?: number;
+      topP?: number;
+      stop?: string[];
+      tools?: ChatTool[];
+    } = {},
+    requestId?: string,
+  ): AsyncGenerator<StreamPart, void, unknown> {
+    const config = this.getConfig();
+    const ac = new AbortController();
+    if (requestId) this.abortControllers.set(requestId, ac);
+
+    const body: ChatCompletionRequest = {
+      model: modelId,
+      messages,
+      stream: true,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 32663,
+      top_p: options.topP ?? 1,
+      stop: options.stop,
+    };
+    if (options.tools?.length) {
+      body.tools = options.tools;
+      body.tool_choice = 'auto';
+      this.log(`Request includes ${options.tools.length} tools`);
+    }
+
+    this.log(`POST ${config.serverUrl}/v1/chat/completions`);
+    try {
+      const resp = await fetch(`${config.serverUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: ac.signal,
+      });
+      if (!resp.ok) throw new Error(`LM Studio API error: ${resp.status} - ${await resp.text()}`);
+      if (!resp.body) throw new Error('No response body');
+
+      yield* this.processSSEStream(resp.body);
+    } finally {
+      if (requestId) this.abortControllers.delete(requestId);
+    }
+  }
+
+  /** Legacy convenience wrapper — yields raw text only. */
+  async *streamChatCompletion(
+    modelId: string,
+    messages: ChatMessage[],
+    options: { temperature?: number; maxTokens?: number; topP?: number; stop?: string[] } = {},
+    requestId?: string,
+  ): AsyncGenerator<string, void, unknown> {
+    for await (const part of this.streamChatCompletionWithTools(modelId, messages, options, requestId)) {
+      if ('text' in part) yield part.text;
+    }
+  }
+
+  cancelRequest(requestId: string): void {
+    const c = this.abortControllers.get(requestId);
+    if (c) { c.abort(); this.abortControllers.delete(requestId); }
+  }
+
+  // ====================================================================
+  //  PRIVATE — SSE stream processing
+  // ====================================================================
+
+  private async *processSSEStream(
+    body: ReadableStream<Uint8Array>,
+  ): AsyncGenerator<StreamPart, void, unknown> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = '';
+
+    // State
+    let insideThink = false;
+    let holdBuffer = '';          // text held while waiting for </tool_call>
+    let toolCallYielded = false;  // tracks whether ANY tool call was emitted this turn
+
+    // OpenAI-style tool calls assembled from deltas
+    const oaiToolCalls = new Map<number, { id: string; name: string; args: string }>();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) continue;
+
+          if (line === 'data: [DONE]') {
+            // Flush hold buffer
+            if (holdBuffer) {
+              yield* this.flushHoldBuffer(holdBuffer, toolCallYielded);
+              holdBuffer = '';
+            }
+            // Emit OpenAI-style tool calls
+            for (const [idx, tc] of oaiToolCalls) {
+              this.log(`OAI tool call [${idx}]: id="${tc.id}" name="${tc.name}" args="${tc.args.slice(0, 200)}"`);
+              if (tc.id && tc.name) {
+                toolCallYielded = true;
+                yield { toolCall: { id: tc.id, type: 'function', function: { name: tc.name, arguments: tc.args } } };
+              } else {
+                this.log(`Skipping incomplete OAI tool call [${idx}]: id="${tc.id}" name="${tc.name}"`);
+              }
+            }
+            oaiToolCalls.clear();
+            continue;
+          }
+
+          if (!line.startsWith('data: ')) continue;
+          let chunk: ChatCompletionChunk;
+          try { chunk = JSON.parse(line.slice(6)); } catch { continue; }
+
+          const choice = chunk.choices?.[0];
+          if (!choice) continue;
+
+          // Log finish_reason when present
+          if (choice.finish_reason) {
+            this.log(`finish_reason: ${choice.finish_reason} (accumulated ${oaiToolCalls.size} OAI tool calls)`);
+          }
+
+          // ── OpenAI-style delta.tool_calls ──────────────────────────
+          if (choice.delta?.tool_calls) {
+            for (const tc of choice.delta.tool_calls) {
+              if (!oaiToolCalls.has(tc.index)) oaiToolCalls.set(tc.index, { id: '', name: '', args: '' });
+              const cur = oaiToolCalls.get(tc.index)!;
+              if (tc.id) cur.id = tc.id;
+              if (tc.function?.name) cur.name = tc.function.name;
+              if (tc.function?.arguments) cur.args += tc.function.arguments;
+            }
+          }
+
+          // ── Text content ──────────────────────────────────────────
+          const rawContent = choice.delta?.content;
+          if (!rawContent) continue;
+
+          const text = this.filterText(rawContent, insideThink);
+          insideThink = this.computeThinkState(rawContent, insideThink);
+          if (!text) continue;
+
+          // Always accumulate into holdBuffer so we can detect tool calls
+          // even after a previous tool call was already yielded.
+          holdBuffer += text;
+
+          // Try to extract tool calls from the buffer first
+          let foundToolCall = false;
+
+          // Check for complete XML tool calls
+          if (holdBuffer.includes('</tool_call>')) {
+            const parsed = this.parseXmlToolCalls(holdBuffer);
+            if (parsed.calls.length > 0) {
+              for (const tc of parsed.calls) { toolCallYielded = true; yield { toolCall: tc }; }
+              holdBuffer = parsed.remaining;
+              foundToolCall = true;
+            }
+          }
+
+          // Check for legacy tool calls
+          if (holdBuffer.includes('<|channel|>') && holdBuffer.includes('<|message|>') && holdBuffer.includes('}')) {
+            const parsed = this.parseLegacyToolCalls(holdBuffer);
+            if (parsed.calls.length > 0) {
+              for (const tc of parsed.calls) { toolCallYielded = true; yield { toolCall: tc }; }
+              holdBuffer = parsed.remaining;
+              foundToolCall = true;
+            }
+          }
+
+          if (foundToolCall) continue;
+
+          // Still accumulating a partial tool-call tag → keep holding
+          if (holdBuffer.includes('<tool_call') || holdBuffer.includes('<|channel|>')) {
+            continue;
+          }
+
+          // No tool-call tag in buffer → emit as text (but only if no
+          // tool call was ever yielded — text after tool calls is filler)
+          if (!toolCallYielded) {
+            yield { text: holdBuffer };
+          }
+          holdBuffer = '';
+        }
+      }
+
+      // Stream ended — flush remaining
+      if (holdBuffer) yield* this.flushHoldBuffer(holdBuffer, toolCallYielded);
+      for (const [, tc] of oaiToolCalls) {
+        if (tc.id && tc.name) {
+          yield { toolCall: { id: tc.id, type: 'function', function: { name: tc.name, arguments: tc.args } } };
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  /** Flush the hold buffer: extract tool calls, then emit remaining text only if no tool call was ever yielded. */
+  private *flushHoldBuffer(buf: string, alreadyYielded: boolean): Generator<StreamPart, void, unknown> {
+    const xml = this.parseXmlToolCalls(buf);
+    const legacy = this.parseLegacyToolCalls(xml.remaining);
+    const allCalls = [...xml.calls, ...legacy.calls];
+    for (const tc of allCalls) yield { toolCall: tc };
+    if (allCalls.length === 0 && !alreadyYielded) {
+      const cleaned = legacy.remaining.trim();
+      if (cleaned) yield { text: cleaned };
+    }
+  }
+
+  // ── Text filtering ────────────────────────────────────────────────────
+
+  /** Strip <think>…</think> and special tokens from a chunk. */
+  private filterText(raw: string, insideThink: boolean): string {
+    let out = '';
+    let i = 0;
+    let inside = insideThink;
+    while (i < raw.length) {
+      if (inside) {
+        const close = raw.indexOf('</think>', i);
+        if (close === -1) break;
+        i = close + '</think>'.length;
+        if (raw[i] === '\n') i++;
+        inside = false;
+      } else {
+        const open = raw.indexOf('<think>', i);
+        if (open === -1) { out += raw.slice(i); break; }
+        out += raw.slice(i, open);
+        i = open + '<think>'.length;
+        inside = true;
+      }
+    }
+    return out.replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '');
+  }
+
+  /** Compute whether we're inside a think block after processing `raw`. */
+  private computeThinkState(raw: string, was: boolean): boolean {
+    let inside = was;
+    let i = 0;
+    while (i < raw.length) {
+      if (inside) {
+        const close = raw.indexOf('</think>', i);
+        if (close === -1) return true;
+        i = close + '</think>'.length;
+        inside = false;
+      } else {
+        const open = raw.indexOf('<think>', i);
+        if (open === -1) return false;
+        i = open + '<think>'.length;
+        inside = true;
+      }
+    }
+    return inside;
+  }
+
+  // ── Tool-call parsers ─────────────────────────────────────────────────
+
+  /** Parse <tool_call>{…}</tool_call> blocks. */
+  private parseXmlToolCalls(text: string): { calls: ToolCall[]; remaining: string } {
+    const calls: ToolCall[] = [];
+    let remaining = text;
+    let idx = 0;
+    for (const m of text.matchAll(XML_TOOL_CALL_RE)) {
+      try {
+        const parsed = JSON.parse(m[1].trim()) as { name?: string; arguments?: unknown };
+        if (parsed.name) {
+          const argsStr = typeof parsed.arguments === 'string' ? parsed.arguments : JSON.stringify(parsed.arguments ?? {});
+          calls.push({ id: `call_${Date.now()}_${idx++}`, type: 'function', function: { name: parsed.name, arguments: argsStr } });
+          remaining = remaining.replace(m[0], '');
+          this.log(`Parsed XML tool call: ${parsed.name}`);
+        }
+      } catch (e) { this.log(`XML tool-call parse error: ${e}`); }
+    }
+    return { calls, remaining };
+  }
+
+  /** Parse legacy <|channel|>…<|message|>{…} and <|fn_name|>{…} formats. */
+  private parseLegacyToolCalls(text: string): { calls: ToolCall[]; remaining: string } {
+    const calls: ToolCall[] = [];
+    let remaining = text;
+    let idx = 0;
+
+    const channelRe = /<\|channel\|>.*?to=functions\/([^\s<]+)\s*<\|constrain\|>json<\|message\|>([\s\S]*?\})(?=<\||$)/g;
+    for (const m of text.matchAll(channelRe)) {
+      try {
+        JSON.parse(m[2]);
+        calls.push({ id: `call_${Date.now()}_${idx++}`, type: 'function', function: { name: m[1], arguments: m[2] } });
+        remaining = remaining.replace(m[0], '');
+        this.log(`Parsed legacy tool call: ${m[1]}`);
+      } catch { /* skip */ }
+    }
+
+    const simpleRe = /<\|([a-zA-Z_][a-zA-Z0-9_]*)\|>(\{[\s\S]*?\})(?=<\||$)/g;
+    const skip = new Set(['channel', 'constrain', 'message', 'endoftext', 'im_start', 'im_end']);
+    for (const m of remaining.matchAll(simpleRe)) {
+      if (skip.has(m[1].toLowerCase())) continue;
+      try {
+        JSON.parse(m[2]);
+        calls.push({ id: `call_${Date.now()}_${idx++}`, type: 'function', function: { name: m[1], arguments: m[2] } });
+        remaining = remaining.replace(m[0], '');
+        this.log(`Parsed simple tool call: ${m[1]}`);
+      } catch { /* skip */ }
+    }
+
+    remaining = remaining
+      .replace(/<\|channel\|>.*?(?=<\||$)/g, '')
+      .replace(/<\|constrain\|>.*?(?=<\||$)/g, '')
+      .replace(/<\|message\|>/g, '')
+      .trim();
+
+    return { calls, remaining };
+  }
+}
