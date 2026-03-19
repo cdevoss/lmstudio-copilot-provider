@@ -1,5 +1,10 @@
 # LM Studio for Copilot Chat
 
+[![GitHub release](https://img.shields.io/github/v/release/yoy123/lmstudio-copilot-provider?sort=semver)](https://github.com/yoy123/lmstudio-copilot-provider/releases)
+[![GitHub last commit](https://img.shields.io/github/last-commit/yoy123/lmstudio-copilot-provider)](https://github.com/yoy123/lmstudio-copilot-provider/commits/main)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.104.0-007ACC?logo=visualstudiocode)](https://code.visualstudio.com/)
+
 Run local LM Studio models inside VS Code Copilot Chat with streaming responses, tool calling, terminal execution, filesystem tools, and optional image generation.
 
 ## What it does
@@ -125,7 +130,35 @@ npm run watch
 
 # Package the extension
 npm run package
+
+# Build a VSIX for local install / Marketplace submission
+npm run package:vsix
 ```
+
+## Releases
+
+- Git tags use the format `v<package.json version>`
+- GitHub releases are created from those tags
+- The first release for this repo is `v0.1.0`
+
+## VS Code Marketplace publishing
+
+This repo is prepared for packaging with `vsce`.
+
+```bash
+# Build a VSIX locally
+npm run package:vsix
+
+# Publish to the Visual Studio Marketplace
+# Requires a VS Code publisher and VSCE_PAT in your environment
+npm run publish:vsce
+```
+
+Before publishing to the Marketplace for real, you may still want to add:
+
+- a square extension icon (128x128 PNG recommended)
+- a `CHANGELOG.md` entry for each release
+- optional CI automation for tagging and VSIX builds
 
 ## License
 

@@ -113,7 +113,10 @@
         },
         "lmstudio-copilot.imageGenBackend": {
           "type": "string",
-          "enum": ["dalle", "a1111"],
+          "enum": [
+            "dalle",
+            "a1111"
+          ],
           "default": "dalle",
           "description": "Image generation backend. 'dalle' = OpenAI DALL-E compatible API (also works with LM Studio image models). 'a1111' = Automatic1111 / Stable Diffusion Web UI."
         },
@@ -181,7 +184,12 @@
         "modelDescription": "Executes a shell command in VS Code integrated terminal and returns its full stdout, stderr, and exit code. Use for build, test, install, lint, and diagnostics commands.",
         "userDescription": "Runs a shell command and returns the output to the model.",
         "canBeReferencedInPrompt": true,
-        "tags": ["terminal", "shell", "command", "execution"],
+        "tags": [
+          "terminal",
+          "shell",
+          "command",
+          "execution"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -194,7 +202,9 @@
               "description": "Working directory (absolute or workspace-relative). Defaults to workspace root."
             }
           },
-          "required": ["command"]
+          "required": [
+            "command"
+          ]
         }
       },
       {
@@ -204,7 +214,11 @@
         "modelDescription": "Reads the contents of a file from disk and returns them with line numbers. Accepts workspace-relative or absolute paths. Optionally specify a line range.",
         "userDescription": "Reads a file and returns its contents to the model.",
         "canBeReferencedInPrompt": true,
-        "tags": ["file", "read", "filesystem"],
+        "tags": [
+          "file",
+          "read",
+          "filesystem"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -221,7 +235,9 @@
               "description": "Last line to read (1-based, inclusive). Omit for end of file."
             }
           },
-          "required": ["path"]
+          "required": [
+            "path"
+          ]
         }
       },
       {
@@ -231,7 +247,12 @@
         "modelDescription": "Writes or overwrites a file on disk with the provided content. Creates parent directories if needed. Use when you want to create or modify a file.",
         "userDescription": "Writes content to a file on disk.",
         "canBeReferencedInPrompt": true,
-        "tags": ["file", "write", "filesystem", "edit"],
+        "tags": [
+          "file",
+          "write",
+          "filesystem",
+          "edit"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -248,7 +269,10 @@
               "description": "Create parent directories if they don't exist. Defaults to true."
             }
           },
-          "required": ["path", "content"]
+          "required": [
+            "path",
+            "content"
+          ]
         }
       },
       {
@@ -258,7 +282,12 @@
         "modelDescription": "Lists the contents of a directory. Returns files and folders with icons. Can recurse into subdirectories up to a configurable depth. Skips node_modules, .git, dist etc.",
         "userDescription": "Lists files and folders in a directory.",
         "canBeReferencedInPrompt": true,
-        "tags": ["file", "directory", "filesystem", "ls"],
+        "tags": [
+          "file",
+          "directory",
+          "filesystem",
+          "ls"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -284,7 +313,12 @@
         "modelDescription": "Searches for a text pattern or regex across all files in the workspace. Returns matching lines with file path, line number, and surrounding context. Uses ripgrep when available for speed.",
         "userDescription": "Searches for text or patterns across workspace files.",
         "canBeReferencedInPrompt": true,
-        "tags": ["search", "grep", "filesystem", "find"],
+        "tags": [
+          "search",
+          "grep",
+          "filesystem",
+          "find"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -313,7 +347,9 @@
               "description": "Number of context lines to show around each match. Defaults to 2."
             }
           },
-          "required": ["pattern"]
+          "required": [
+            "pattern"
+          ]
         }
       },
       {
@@ -323,7 +359,13 @@
         "modelDescription": "Generates an image from a text prompt using a configured image generation backend (DALL-E compatible API or Automatic1111 Stable Diffusion). Saves the image to disk and displays it inline in chat. Supports optional negative prompt, dimensions, and output path.",
         "userDescription": "Generates an image from a text description.",
         "canBeReferencedInPrompt": true,
-        "tags": ["image", "generate", "dalle", "stable-diffusion", "ai"],
+        "tags": [
+          "image",
+          "generate",
+          "dalle",
+          "stable-diffusion",
+          "ai"
+        ],
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -352,7 +394,9 @@
               "description": "Workspace-relative or absolute path to save the image. Defaults to generated-images/<timestamp>.png."
             }
           },
-          "required": ["prompt"]
+          "required": [
+            "prompt"
+          ]
         }
       }
     ]
@@ -365,6 +409,8 @@
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package": "npm run check-types && node esbuild.js --production",
+    "package:vsix": "vsce package",
+    "publish:vsce": "vsce publish",
     "lint": "eslint src",
     "test": "node ./out/test/runTest.js"
   },
@@ -373,6 +419,7 @@
     "@types/vscode": "^1.104.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.20.0",
     "eslint": "^8.56.0",
     "npm-run-all": "^4.1.5",
