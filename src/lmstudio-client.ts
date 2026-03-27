@@ -128,15 +128,21 @@ export class LMStudioClient {
     const ac = new AbortController();
     if (requestId) this.abortControllers.set(requestId, ac);
 
+    const normalizedMessages = this.normalizeOutgoingMessages(messages);
+
     const body: ChatCompletionRequest = {
       model: modelId,
-      messages,
+      messages: normalizedMessages,
       stream: true,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 32663,
       top_p: options.topP ?? 1,
       stop: options.stop,
     };
+    if (this.isQwenFamilyModel(modelId)) {
+      body.enable_thinking = false;
+      this.log('Applied Qwen compatibility: enable_thinking=false');
+    }
     if (options.tools?.length) {
       body.tools = options.tools;
       body.tool_choice = 'auto';
@@ -431,5 +437,30 @@ export class LMStudioClient {
       .trim();
 
     return { calls, remaining };
+  }
+
+  private normalizeOutgoingMessages(messages: ChatMessage[]): ChatMessage[] {
+    return messages.map((m) => {
+      const sanitized = this.sanitizeOutgoingContent(m.content);
+      const assistantToolCallOnly = m.role === 'assistant' && Boolean(m.tool_calls?.length) && !sanitized;
+
+      return {
+        ...m,
+        content: assistantToolCallOnly ? null : sanitized,
+      };
+    });
+  }
+
+  private sanitizeOutgoingContent(content: string | null): string | null {
+    if (content === null) return null;
+    return content
+      .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')
+      .replace(/<\/?(tool_response|tool_call)>/g, '')
+      .trim();
+  }
+
+  private isQwenFamilyModel(modelId: string): boolean {
+    const normalized = modelId.toLowerCase();
+    return normalized.includes('qwen') || normalized.includes('qwq');
   }
 }

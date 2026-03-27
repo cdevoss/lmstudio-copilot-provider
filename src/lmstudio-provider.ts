@@ -140,19 +140,27 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
       this.log(`  [${i}] role=${m.role}${tcId}${tcInfo} content="${contentPreview}"`);
     }
 
-    // 2. Prepend a single, minimal system message.
-    //    The model's jinja template merges messages[0] (if system) with
-    //    the <tools> block, so this is the only system message we should add.
-    //    We do NOT list tools here — the template does that.
-    openaiMessages.unshift({
-      role: 'system',
-      content: [
-        'You are a helpful AI coding assistant embedded in Visual Studio Code.',
-        'Respond concisely and directly. Answer in the same language the user writes in.',
-        'Do not introduce yourself. Do not restate your identity or capabilities unless the user explicitly asks.',
-        'Do not include <think> or </think> tags in your output.',
-      ].join('\n'),
-    });
+    // 2. Prepend a single, minimal system message (except for Qwen-family
+    //    models where LM Studio chat templates are typically configured to
+    //    own system/tool instructions end-to-end).
+    const hasLeadingSystem = openaiMessages[0]?.role === 'system';
+    const shouldInjectSystemPrompt = !hasLeadingSystem && !this.isQwenFamilyModel(modelId);
+    if (shouldInjectSystemPrompt) {
+      // The model's jinja template merges messages[0] (if system) with
+      // the <tools> block, so this is the only system message we should add.
+      // We do NOT list tools here — the template does that.
+      openaiMessages.unshift({
+        role: 'system',
+        content: [
+          'You are a helpful AI coding assistant embedded in Visual Studio Code.',
+          'Respond concisely and directly. Answer in the same language the user writes in.',
+          'Do not introduce yourself. Do not restate your identity or capabilities unless the user explicitly asks.',
+          'Do not include <think> or </think> tags in your output.',
+        ].join('\n'),
+      });
+    } else {
+      this.log(`Skipping injected system prompt for model=${modelId} (leadingSystem=${hasLeadingSystem})`);
+    }
 
     // 3. Convert tools → OpenAI format (with budget limit)
     const tools = this.convertTools(options.tools, messages);
@@ -458,6 +466,11 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
       }).join('');
     }
     return String(content);
+  }
+
+  private isQwenFamilyModel(modelId: string): boolean {
+    const normalized = modelId.toLowerCase();
+    return normalized.includes('qwen') || normalized.includes('qwq');
   }
 
   // ──────────────────────────────────────────────────────────────────────
