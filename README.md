@@ -141,25 +141,6 @@ npm run package:vsix
 - GitHub releases are created from those tags
 - The first release for this repo is `v0.1.0`
 
-## VS Code Marketplace publishing
-
-This repo is prepared for packaging with `vsce`.
-
-```bash
-# Build a VSIX locally
-npm run package:vsix
-
-# Publish to the Visual Studio Marketplace
-# Requires a VS Code publisher and VSCE_PAT in your environment
-npm run publish:vsce
-```
-
-Before publishing to the Marketplace for real, you may still want to add:
-
-- a square extension icon (128x128 PNG recommended)
-- a `CHANGELOG.md` entry for each release
-- optional CI automation for tagging and VSIX builds
-
 ## License
 
 MIT
