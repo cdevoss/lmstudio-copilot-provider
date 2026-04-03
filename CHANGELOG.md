@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.7] - 2026-04-03
+
+### Changed
+
+- (Release placeholder — identical to 0.1.6 with changelog update)
+
+## [0.1.6] - 2026-04-03
+
+### Changed
+
+- Replaced Qwen-specific model-name sniffing with two user-controlled settings:
+  - `lmstudio-copilot.injectSystemPrompt` — toggle the extension's system prompt injection (default: on)
+  - `lmstudio-copilot.enableThinking` — toggle the `enable_thinking` parameter for thinking/CoT models (default: on)
+- Removed `isQwenFamilyModel()` helpers from both provider and client — settings now apply to all model families
+
 ## [0.1.5] - 2026-03-27
 
 ### Change 6
