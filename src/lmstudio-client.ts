@@ -139,9 +139,11 @@ export class LMStudioClient {
       top_p: options.topP ?? 1,
       stop: options.stop,
     };
-    if (this.isQwenFamilyModel(modelId)) {
+    const clientConfig = vscode.workspace.getConfiguration('lmstudio-copilot');
+    const enableThinking = clientConfig.get<boolean>('enableThinking', true);
+    if (!enableThinking) {
       body.enable_thinking = false;
-      this.log('Applied Qwen compatibility: enable_thinking=false');
+      this.log('enable_thinking=false (user setting)');
     }
     if (options.tools?.length) {
       body.tools = options.tools;
@@ -459,8 +461,4 @@ export class LMStudioClient {
       .trim();
   }
 
-  private isQwenFamilyModel(modelId: string): boolean {
-    const normalized = modelId.toLowerCase();
-    return normalized.includes('qwen') || normalized.includes('qwq');
-  }
 }

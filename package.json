@@ -112,6 +112,16 @@
           "default": true,
           "description": "Enable tool calling support for models that support it (e.g., Qwen, Llama 3.1+, Mistral)."
         },
+        "lmstudio-copilot.injectSystemPrompt": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prepend a system message with coding-assistant instructions. Disable if your LM Studio chat template already includes system instructions."
+        },
+        "lmstudio-copilot.enableThinking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow models to use extended thinking / chain-of-thought (enable_thinking parameter). Disable for models that produce noisy <think> blocks or error on the parameter."
+        },
         "lmstudio-copilot.imageGenBackend": {
           "type": "string",
           "enum": [

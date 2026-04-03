@@ -140,12 +140,14 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
       this.log(`  [${i}] role=${m.role}${tcId}${tcInfo} content="${contentPreview}"`);
     }
 
-    // 2. Prepend a single, minimal system message (except for Qwen-family
-    //    models where LM Studio chat templates are typically configured to
-    //    own system/tool instructions end-to-end).
+    // 2. Optionally prepend a single, minimal system message.
+    //    Controlled by the "injectSystemPrompt" setting so users whose
+    //    LM Studio chat templates already include system instructions can
+    //    disable it without relying on model-name sniffing.
+    const config = vscode.workspace.getConfiguration('lmstudio-copilot');
+    const injectSystemPrompt = config.get<boolean>('injectSystemPrompt', true);
     const hasLeadingSystem = openaiMessages[0]?.role === 'system';
-    const shouldInjectSystemPrompt = !hasLeadingSystem && !this.isQwenFamilyModel(modelId);
-    if (shouldInjectSystemPrompt) {
+    if (injectSystemPrompt && !hasLeadingSystem) {
       // The model's jinja template merges messages[0] (if system) with
       // the <tools> block, so this is the only system message we should add.
       // We do NOT list tools here — the template does that.
@@ -159,7 +161,7 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
         ].join('\n'),
       });
     } else {
-      this.log(`Skipping injected system prompt for model=${modelId} (leadingSystem=${hasLeadingSystem})`);
+      this.log(`Skipping system prompt (inject=${injectSystemPrompt}, leadingSystem=${hasLeadingSystem})`);
     }
 
     // 3. Convert tools → OpenAI format (with budget limit)
@@ -468,16 +470,9 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
     return String(content);
   }
 
-  private isQwenFamilyModel(modelId: string): boolean {
-    const normalized = modelId.toLowerCase();
-    return normalized.includes('qwen') || normalized.includes('qwq');
-  }
-
   // ──────────────────────────────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────────────────────────────
-
-
 
   private formatModelName(modelId: string): string {
     return modelId
