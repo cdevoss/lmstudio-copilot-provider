@@ -443,36 +443,48 @@ export class LMStudioClient {
   }
 
   private normalizeOutgoingMessages(messages: ChatMessage[]): ChatMessage[] {
-    return messages.map((m) => {
-      const sanitized = this.sanitizeOutgoingContent(m.content);
-      
-      // OpenAI (and thus LM Studio) requires content to be null when assistant has tool_calls
-      // If sanitized is an empty string or empty array, treat it as null.
-      const isEmpty = !sanitized || (Array.isArray(sanitized) && sanitized.length === 0) || (typeof sanitized === 'string' && sanitized.trim() === '');
-      const assistantToolCallOnly = m.role === 'assistant' && Boolean(m.tool_calls?.length) && isEmpty;
+    return messages
+      .map((m) => {
+        const sanitized = this.sanitizeOutgoingContent(m.content);
+        const empty = this.isContentEmpty(sanitized);
 
-      return {
-        ...m,
-        content: assistantToolCallOnly ? null : sanitized,
-      };
-    });
+        if (m.role === 'assistant' && m.tool_calls?.length) {
+          return { ...m, content: empty ? null : sanitized };
+        }
+
+        // Drop messages that are empty (unless it's an assistant with tool_calls)
+        if (empty) return null;
+
+        return { ...m, content: sanitized };
+      })
+      .filter((m): m is ChatMessage => m !== null);
+  }
+
+  private isContentEmpty(content: string | ChatMessageContentPart[] | null): boolean {
+    if (!content) return true;
+    if (typeof content === 'string') return content.trim().length === 0;
+    if (Array.isArray(content)) {
+      if (content.length === 0) return true;
+      return content.every(part => part.type === 'text' && part.text.trim().length === 0);
+    }
+    return false;
   }
 
   private sanitizeOutgoingContent(content: string | ChatMessageContentPart[] | null): string | ChatMessageContentPart[] | null {
     if (content === null) return null;
     if (Array.isArray(content)) {
-      return content.map(part => {
-        if (part.type === 'text') {
-          return {
-            ...part,
-            text: part.text
+      return content
+        .map(part => {
+          if (part.type === 'text') {
+            const cleaned = part.text
               .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')
               .replace(/<\/?(tool_response|tool_call)>/g, '')
-              .trim()
-          };
-        }
-        return part;
-      });
+              .trim();
+            return { ...part, text: cleaned };
+          }
+          return part;
+        })
+        .filter(part => part.type !== 'text' || part.text.length > 0);
     }
     return content
       .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')

@@ -294,8 +294,26 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
     text: string | vscode.LanguageModelChatRequestMessage,
     _token: vscode.CancellationToken
   ): Promise<number> {
-    const content = typeof text === 'string' ? text : this.extractMessageContent(text);
-    return Math.ceil(content.length / 4);
+    if (typeof text === 'string') {
+      return Math.ceil(text.length / 4);
+    }
+    
+    const converted = this.convertToChatMessageContent(text.content);
+    let length = 0;
+    if (typeof converted === 'string') {
+      length = converted.length;
+    } else if (Array.isArray(converted)) {
+      for (const part of converted) {
+        if (part.type === 'text') {
+          length += part.text.length;
+        } else if (part.type === 'image_url') {
+          // Heuristic: images take significant context, often ~1000 tokens or more.
+          // Since we don't have the exact model's tokenisation for images, we use a constant.
+          length += 4000; 
+        }
+      }
+    }
+    return Math.ceil(length / 4);
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -333,10 +351,10 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
             tool_call_id: part.callId,
           });
         }
-        // Include any accompanying plain text as a separate user message
-        const text = this.extractMessageContent(msg);
-        if (text.trim()) {
-          result.push({ role: 'user', content: text });
+        // Include any accompanying content (text/images) as a separate user message
+        const userContent = this.convertToChatMessageContent(msg.content);
+        if (!this.isContentEmpty(userContent)) {
+          result.push({ role: 'user', content: userContent });
         }
         continue;
       }
@@ -369,10 +387,13 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
       }
 
       // ── Plain message (User/Assistant/System) ────────────────────────
-      result.push({
-        role: this.mapRole(msg.role),
-        content: this.convertToChatMessageContent(msg.content),
-      });
+      const convertedContent = this.convertToChatMessageContent(msg.content);
+      if (!this.isContentEmpty(convertedContent)) {
+        result.push({
+          role: this.mapRole(msg.role),
+          content: convertedContent,
+        });
+      }
     }
 
     return result;
@@ -407,6 +428,16 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
     }
 
     return parts;
+  }
+
+  private isContentEmpty(content: string | ChatMessageContentPart[] | null): boolean {
+    if (!content) return true;
+    if (typeof content === 'string') return content.trim().length === 0;
+    if (Array.isArray(content)) {
+      if (content.length === 0) return true;
+      return content.every(part => part.type === 'text' && part.text.trim().length === 0);
+    }
+    return false;
   }
 
   /**
