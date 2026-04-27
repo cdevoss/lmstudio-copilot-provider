@@ -4,6 +4,7 @@ import {
   LMStudioModel,
   LMStudioRawModel,
   ChatMessage,
+  ChatMessageContentPart,
   ChatCompletionRequest,
   ChatCompletionChunk,
   ChatTool,
@@ -444,7 +445,11 @@ export class LMStudioClient {
   private normalizeOutgoingMessages(messages: ChatMessage[]): ChatMessage[] {
     return messages.map((m) => {
       const sanitized = this.sanitizeOutgoingContent(m.content);
-      const assistantToolCallOnly = m.role === 'assistant' && Boolean(m.tool_calls?.length) && !sanitized;
+      
+      // OpenAI (and thus LM Studio) requires content to be null when assistant has tool_calls
+      // If sanitized is an empty string or empty array, treat it as null.
+      const isEmpty = !sanitized || (Array.isArray(sanitized) && sanitized.length === 0) || (typeof sanitized === 'string' && sanitized.trim() === '');
+      const assistantToolCallOnly = m.role === 'assistant' && Boolean(m.tool_calls?.length) && isEmpty;
 
       return {
         ...m,
@@ -453,8 +458,22 @@ export class LMStudioClient {
     });
   }
 
-  private sanitizeOutgoingContent(content: string | null): string | null {
+  private sanitizeOutgoingContent(content: string | ChatMessageContentPart[] | null): string | ChatMessageContentPart[] | null {
     if (content === null) return null;
+    if (Array.isArray(content)) {
+      return content.map(part => {
+        if (part.type === 'text') {
+          return {
+            ...part,
+            text: part.text
+              .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')
+              .replace(/<\/?(tool_response|tool_call)>/g, '')
+              .trim()
+          };
+        }
+        return part;
+      });
+    }
     return content
       .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')
       .replace(/<\/?(tool_response|tool_call)>/g, '')

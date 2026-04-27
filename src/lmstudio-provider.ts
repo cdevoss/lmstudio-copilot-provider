@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { LMStudioClient } from './lmstudio-client';
-import { LMStudioModel, ChatMessage, ChatTool } from './types';
+import { LMStudioModel, ChatMessage, ChatTool, ChatMessageContentPart } from './types';
 
 /**
  * Information about an LM Studio model for VS Code
@@ -89,12 +89,12 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
       name: this.formatModelName(model.id),
       family: 'lmstudio',
       version: '1.0.0',
-      maxInputTokens,
+      maxInputTokens: model.max_context_length || maxInputTokens,
       maxOutputTokens,
       lmstudioModelId: model.id,
       capabilities: {
         toolCalling: enableToolCalling,
-        imageInput: false,
+        imageInput: model.capabilities?.vision ?? false,
       },
     }));
   }
@@ -310,6 +310,7 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
    *   - LanguageModelTextPart → plain text
    *   - LanguageModelToolCallPart → an assistant's tool call request
    *   - LanguageModelToolResultPart → the result of a tool execution
+   *   - LanguageModelDataPart → an image or other binary data (for vision models)
    *
    * We flat-map because one VS Code message may expand into multiple OpenAI
    * messages (e.g. a user message with tool results → one "tool" message per result).
@@ -367,14 +368,45 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
         }
       }
 
-      // ── Plain message ────────────────────────────────────────────────
+      // ── Plain message (User/Assistant/System) ────────────────────────
       result.push({
         role: this.mapRole(msg.role),
-        content: this.extractMessageContent(msg),
+        content: this.convertToChatMessageContent(msg.content),
       });
     }
 
     return result;
+  }
+
+  /**
+   * Convert VS Code message content parts to OpenAI-compatible content.
+   * Handles text and images (vision).
+   */
+  private convertToChatMessageContent(
+    content: string | readonly any[]
+  ): string | ChatMessageContentPart[] {
+    if (typeof content === 'string') return content;
+
+    const parts: ChatMessageContentPart[] = [];
+    for (const part of content) {
+      if (part instanceof vscode.LanguageModelTextPart) {
+        parts.push({ type: 'text', text: part.value });
+      } else if (part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith('image/')) {
+        const base64 = Buffer.from(part.data).toString('base64');
+        parts.push({
+          type: 'image_url',
+          image_url: { url: `data:${part.mimeType};base64,${base64}` }
+        });
+      }
+    }
+
+    // If it's just one text part, return it as a string for better compatibility
+    // with models that don't fully support the array-of-parts format for plain text.
+    if (parts.length === 1 && parts[0].type === 'text') {
+      return parts[0].text;
+    }
+
+    return parts;
   }
 
   /**
