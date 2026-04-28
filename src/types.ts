@@ -114,6 +114,8 @@ export interface ChatCompletionRequest {
   tool_choice?: 'none' | 'auto' | { type: 'function'; function: { name: string } };
   /** Qwen3 / thinking models: set false to skip generating a reasoning trace */
   enable_thinking?: boolean;
+  /** OpenAI-style reasoning effort hint for models that support it (e.g. o1, o3, QwQ) */
+  reasoning_effort?: 'low' | 'medium' | 'high';
 }
 
 /**

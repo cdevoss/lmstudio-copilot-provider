@@ -2,7 +2,7 @@
   "name": "lmstudio-copilot-provider",
   "displayName": "LM Studio for Copilot Chat",
   "description": "Use local LM Studio models inside VS Code Copilot Chat with streaming, tool calling, and optional image generation.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "DanLambiase",
   "license": "MIT",
   "repository": {
@@ -121,6 +121,23 @@
           "type": "boolean",
           "default": true,
           "description": "Allow models to use extended thinking / chain-of-thought (enable_thinking parameter). Disable for models that produce noisy <think> blocks or error on the parameter."
+        },
+        "lmstudio-copilot.reasoningEffort": {
+          "type": "string",
+          "enum": [
+            "default",
+            "low",
+            "medium",
+            "high"
+          ],
+          "enumDescriptions": [
+            "Do not send a reasoning_effort parameter — the model uses its built-in default.",
+            "Minimal reasoning trace. Faster responses, lower token usage.",
+            "Balanced reasoning. Good for most tasks.",
+            "Maximum reasoning depth. Best for complex problems, uses more tokens."
+          ],
+          "default": "default",
+          "description": "Reasoning effort level sent to models that support the reasoning_effort parameter (e.g. o1, o3, QwQ). Has no effect on models that do not support the parameter."
         },
         "lmstudio-copilot.imageGenBackend": {
           "type": "string",

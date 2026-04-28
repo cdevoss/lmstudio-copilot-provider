@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.8] - 2026-04-28
+
+### Added
+
+- New `lmstudio-copilot.reasoningEffort` setting (`"default"` / `"low"` / `"medium"` / `"high"`) — sends the `reasoning_effort` parameter to models that support it (o1, o3, QwQ, and similar reasoning-capable models)
+- Documented the existing `lmstudio-copilot.enableThinking` setting and added a dedicated "Extended thinking and reasoning effort" section to the README with usage examples
+
 ## [0.1.7] - 2026-04-03
 
 ### Changed
