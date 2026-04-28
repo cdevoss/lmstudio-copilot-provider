@@ -82,7 +82,8 @@ export function createTerminalTool(outputChannel: vscode.OutputChannel): vscode.
       outputChannel.appendLine(`[run_in_terminal] cwd=${cwd}  cmd=${command}`);
 
       // Show the command in the named terminal so the user can follow along
-      const existing = vscode.window.terminals.find((t) => t.name === terminalName);
+      // Only reuse a terminal that is still alive (exitStatus === undefined means it hasn't exited)
+      const existing = vscode.window.terminals.find((t) => t.name === terminalName && t.exitStatus === undefined);
       const terminal = existing ?? vscode.window.createTerminal({ name: terminalName });
       terminal.show(true);
       terminal.sendText(command, true);
