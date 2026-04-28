@@ -146,6 +146,12 @@ export class LMStudioClient {
       body.enable_thinking = false;
       this.log('enable_thinking=false (user setting)');
     }
+
+    const reasoningEffort = clientConfig.get<string>('reasoningEffort', 'default');
+    if (reasoningEffort !== 'default') {
+      body.reasoning_effort = reasoningEffort as 'low' | 'medium' | 'high';
+      this.log(`reasoning_effort=${reasoningEffort} (user setting)`);
+    }
     if (options.tools?.length) {
       body.tools = options.tools;
       body.tool_choice = 'auto';

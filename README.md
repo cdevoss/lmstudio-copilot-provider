@@ -57,6 +57,8 @@ This extension contributes the following settings:
 - `lmstudio-copilot.requestTimeout`: Request timeout in milliseconds (default: `60000`)
 - `lmstudio-copilot.maxTools`: Maximum number of tools exposed to the model per request (default: `20`)
 - `lmstudio-copilot.enableToolCalling`: Enable tool calling support when the model can use tools
+- `lmstudio-copilot.enableThinking`: Allow models to use extended thinking / chain-of-thought. Disable if your model errors on `enable_thinking` or produces noisy `<think>` blocks (default: `true`)
+- `lmstudio-copilot.reasoningEffort`: Reasoning effort level for models that support the `reasoning_effort` parameter — `"low"`, `"medium"`, `"high"`, or `"default"` (do not send the parameter). Affects models like o1, o3, and QwQ (default: `"default"`)
 - `lmstudio-copilot.imageGenBackend`: Choose `dalle` or `a1111`
 - `lmstudio-copilot.imageGenEndpointUrl`: Base URL for the selected image generation backend
 - `lmstudio-copilot.imageGenModel`: Image model name for DALL-E-compatible backends
@@ -94,6 +96,35 @@ Many local models become unreliable when given dozens of tool schemas at once, e
 - Set `lmstudio-copilot.maxTools` to `0` to disable the limit.
 
 This helps reduce hallucinated tool names, malformed inputs, and context-window bloat.
+
+### Extended thinking and reasoning effort
+
+Some models (Qwen3-thinking, QwQ, o1, o3, and similar) can perform multi-step internal reasoning before responding.
+
+Two settings control this behaviour:
+
+| Setting | Purpose | Values |
+|---|---|---|
+| `lmstudio-copilot.enableThinking` | Toggle `enable_thinking` in the request | `true` (default) / `false` |
+| `lmstudio-copilot.reasoningEffort` | Set `reasoning_effort` in the request | `"default"` (don't send) / `"low"` / `"medium"` / `"high"` |
+
+**To enable maximum reasoning**, set `reasoningEffort` to `"high"` in your VS Code settings:
+
+```json
+{
+  "lmstudio-copilot.reasoningEffort": "high"
+}
+```
+
+**To disable thinking** for models that produce noisy `<think>` blocks:
+
+```json
+{
+  "lmstudio-copilot.enableThinking": false
+}
+```
+
+The extension automatically strips `<think>…</think>` traces from the visible response — they are never shown in the chat window.
 
 ### Image generation
 
