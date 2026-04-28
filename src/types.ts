@@ -61,10 +61,17 @@ export interface ModelsResponse {
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   // null is required by OpenAI spec when the assistant message only contains tool_calls
-  content: string | null;
+  content: string | ChatMessageContentPart[] | null;
   tool_call_id?: string;
   tool_calls?: ToolCall[];
 }
+
+/**
+ * Content part for multi-modal messages
+ */
+export type ChatMessageContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
 
 /**
  * Tool definition for function calling

@@ -4,6 +4,7 @@ import {
   LMStudioModel,
   LMStudioRawModel,
   ChatMessage,
+  ChatMessageContentPart,
   ChatCompletionRequest,
   ChatCompletionChunk,
   ChatTool,
@@ -442,19 +443,49 @@ export class LMStudioClient {
   }
 
   private normalizeOutgoingMessages(messages: ChatMessage[]): ChatMessage[] {
-    return messages.map((m) => {
-      const sanitized = this.sanitizeOutgoingContent(m.content);
-      const assistantToolCallOnly = m.role === 'assistant' && Boolean(m.tool_calls?.length) && !sanitized;
+    return messages
+      .map((m) => {
+        const sanitized = this.sanitizeOutgoingContent(m.content);
+        const empty = this.isContentEmpty(sanitized);
 
-      return {
-        ...m,
-        content: assistantToolCallOnly ? null : sanitized,
-      };
-    });
+        if (m.role === 'assistant' && m.tool_calls?.length) {
+          return { ...m, content: empty ? null : sanitized };
+        }
+
+        // Drop messages that are empty (unless it's an assistant with tool_calls)
+        if (empty) return null;
+
+        return { ...m, content: sanitized };
+      })
+      .filter((m): m is ChatMessage => m !== null);
   }
 
-  private sanitizeOutgoingContent(content: string | null): string | null {
+  private isContentEmpty(content: string | ChatMessageContentPart[] | null): boolean {
+    if (!content) return true;
+    if (typeof content === 'string') return content.trim().length === 0;
+    if (Array.isArray(content)) {
+      if (content.length === 0) return true;
+      return content.every(part => part.type === 'text' && part.text.trim().length === 0);
+    }
+    return false;
+  }
+
+  private sanitizeOutgoingContent(content: string | ChatMessageContentPart[] | null): string | ChatMessageContentPart[] | null {
     if (content === null) return null;
+    if (Array.isArray(content)) {
+      return content
+        .map(part => {
+          if (part.type === 'text') {
+            const cleaned = part.text
+              .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')
+              .replace(/<\/?(tool_response|tool_call)>/g, '')
+              .trim();
+            return { ...part, text: cleaned };
+          }
+          return part;
+        })
+        .filter(part => part.type !== 'text' || part.text.length > 0);
+    }
     return content
       .replace(/<\|(startofstream|endofstream|im_start|im_end|endoftext|end_of_turn|eot_id)\|>/g, '')
       .replace(/<\/?(tool_response|tool_call)>/g, '')
