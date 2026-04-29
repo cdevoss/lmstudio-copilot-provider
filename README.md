@@ -172,6 +172,17 @@ npm run package:vsix
 - GitHub releases are created from those tags
 - The first release for this repo is `v0.1.0`
 
+## Contributors
+
+Thank you to everyone who has contributed code, pull requests, or issues to this project:
+
+- [yoy123](https://github.com/yoy123) — 21 contributions
+- [Copilot](https://github.com/apps/copilot-swe-agent) — 5 contributions
+- [szkane](https://github.com/szkane) — 2 contributions
+- [NHausleitner](https://github.com/NHausleitner) — issue author
+- [Pixelzated](https://github.com/Pixelzated) — issue author
+- [fmuntean](https://github.com/fmuntean) — issue author
+
 ## License
 
 MIT
