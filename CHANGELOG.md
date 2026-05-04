@@ -4,12 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
-## [Unreleased]
+## [0.1.11] - 2026-05-04
 
 ### Change 11
 
 - Simplified the README to focus on the actual end-user setup and usage path
 - Improved LM Studio CLI detection so the extension also checks common install locations instead of requiring `lms` to be on `PATH`
+- Tightened the extension icon artwork inside `assets/Latest.png` so it fills the Marketplace icon frame more effectively
 
 ## [0.1.10] - 2026-05-04
 
