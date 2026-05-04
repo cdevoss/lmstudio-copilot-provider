@@ -8,7 +8,7 @@
 Run local LM Studio models inside VS Code Copilot Chat with streaming responses, tool calling, terminal execution, filesystem tools, and optional image generation.
 
 ## Dont waste your time building this. Install directly from vscode marketplace 
-## https://marketplace.visualstudio.com/items?itemName=DanLambiase.lmstudio-copilot-provider
+## [Direct VSCode Marketplace Link](https://marketplace.visualstudio.com/items?itemName=DanLambiase.lmstudio-copilot-provider)
 
 ## What it does
 
