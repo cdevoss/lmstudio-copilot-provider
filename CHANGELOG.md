@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.12] - 2026-05-04
+
+### Change 12
+
+- Bumped the release version to publish the current aligned extension contents as a new Marketplace/GitHub release
+
 ## [0.1.11] - 2026-05-04
 
 ### Change 11
