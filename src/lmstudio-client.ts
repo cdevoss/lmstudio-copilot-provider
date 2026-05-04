@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as os from 'os';
+import * as path from 'path';
 import {
   LMStudioConfig,
   LMStudioLocalModel,
@@ -88,7 +90,24 @@ export class LMStudioClient {
       return this.resolvedCliPath;
     }
 
-    const candidates = [...new Set([this.getCliPathSetting(), 'lms'].filter(Boolean))];
+    const homeDir = os.homedir();
+    const isWindows = process.platform === 'win32';
+    const cliName = isWindows ? 'lms.exe' : 'lms';
+    const candidates = [...new Set([
+      this.getCliPathSetting(),
+      process.env.LMSTUDIO_CLI_PATH,
+      'lms',
+      path.join(homeDir, '.lmstudio', 'bin', cliName),
+      process.platform === 'linux' ? path.join(homeDir, '.local', 'bin', cliName) : undefined,
+      process.platform === 'darwin' ? path.join('/Applications', 'LM Studio.app', 'Contents', 'Resources', cliName) : undefined,
+      isWindows && process.env.LOCALAPPDATA
+        ? path.join(process.env.LOCALAPPDATA, 'Programs', 'LM Studio', 'resources', 'bin', cliName)
+        : undefined,
+      isWindows && process.env.USERPROFILE
+        ? path.join(process.env.USERPROFILE, '.lmstudio', 'bin', cliName)
+        : undefined,
+    ].filter((candidate): candidate is string => Boolean(candidate)))];
+
     for (const candidate of candidates) {
       const result = await this.execFileAsync(candidate, ['--help'], 5000);
       if (result.exitCode === 0) {
@@ -99,7 +118,7 @@ export class LMStudioClient {
     }
 
     this.resolvedCliPath = null;
-    this.log('LM Studio CLI was not found in PATH');
+    this.log('LM Studio CLI was not found in the configured path, PATH, or common install locations');
     return null;
   }
 
