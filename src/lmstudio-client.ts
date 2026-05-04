@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
+import * as cp from 'child_process';
 import {
   LMStudioConfig,
+  LMStudioLocalModel,
   LMStudioModel,
   LMStudioRawModel,
   ChatMessage,
@@ -37,6 +39,7 @@ const XML_TOOL_CALL_RE = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
  */
 export class LMStudioClient {
   private abortControllers = new Map<string, AbortController>();
+  private resolvedCliPath: string | null | undefined;
 
   constructor(private outputChannel?: vscode.OutputChannel) {}
 
@@ -46,6 +49,173 @@ export class LMStudioClient {
 
   private getConfig(): LMStudioConfig {
     return getConfig();
+  }
+
+  private getCliPathSetting(): string {
+    const config = vscode.workspace.getConfiguration('lmstudio-copilot');
+    return config.get<string>('cliPath', 'lms').trim() || 'lms';
+  }
+
+  private getStartupWaitMs(): number {
+    const config = vscode.workspace.getConfiguration('lmstudio-copilot');
+    return Math.max(config.get<number>('startupWaitMs', 3000), 0);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async execFileAsync(
+    command: string,
+    args: string[],
+    timeoutMs: number,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    return new Promise((resolve) => {
+      cp.execFile(command, args, { timeout: timeoutMs }, (error, stdout, stderr) => {
+        const rawCode = (error as NodeJS.ErrnoException | null)?.code;
+        const code = typeof rawCode === 'number' ? rawCode : error ? 1 : 0;
+        resolve({
+          stdout: stdout.toString(),
+          stderr: stderr.toString(),
+          exitCode: code,
+        });
+      });
+    });
+  }
+
+  private async resolveCliPath(): Promise<string | null> {
+    if (this.resolvedCliPath !== undefined) {
+      return this.resolvedCliPath;
+    }
+
+    const candidates = [...new Set([this.getCliPathSetting(), 'lms'].filter(Boolean))];
+    for (const candidate of candidates) {
+      const result = await this.execFileAsync(candidate, ['--help'], 5000);
+      if (result.exitCode === 0) {
+        this.resolvedCliPath = candidate;
+        this.log(`Resolved LM Studio CLI path: ${candidate}`);
+        return candidate;
+      }
+    }
+
+    this.resolvedCliPath = null;
+    this.log('LM Studio CLI was not found in PATH');
+    return null;
+  }
+
+  private async execLms(
+    args: string[],
+    timeoutMs: number,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const cliPath = await this.resolveCliPath();
+    if (!cliPath) {
+      return { stdout: '', stderr: 'LM Studio CLI not found', exitCode: 127 };
+    }
+
+    this.log(`CLI: ${cliPath} ${args.join(' ')}`);
+    const result = await this.execFileAsync(cliPath, args, timeoutMs);
+    if (result.exitCode !== 0) {
+      this.log(`CLI command failed (${result.exitCode}): ${result.stderr || result.stdout}`);
+    }
+    return result;
+  }
+
+  private async execLmsJson<T>(args: string[], timeoutMs: number): Promise<T | null> {
+    const result = await this.execLms(args, timeoutMs);
+    if (result.exitCode !== 0) {
+      return null;
+    }
+
+    const text = result.stdout.trim();
+    if (!text) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch (error) {
+      this.log(`Failed to parse CLI JSON for "${args.join(' ')}": ${error}`);
+      return null;
+    }
+  }
+
+  private async spawnDetachedLms(args: string[]): Promise<boolean> {
+    const cliPath = await this.resolveCliPath();
+    if (!cliPath) {
+      return false;
+    }
+
+    try {
+      const child = cp.spawn(cliPath, args, {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+      this.log(`Spawned detached CLI process: ${cliPath} ${args.join(' ')}`);
+      return true;
+    } catch (error) {
+      this.log(`Failed to spawn detached CLI process: ${error}`);
+      return false;
+    }
+  }
+
+  private parseServerUrl(): URL | null {
+    try {
+      return new URL(this.getConfig().serverUrl);
+    } catch (error) {
+      this.log(`Invalid server URL: ${error}`);
+      return null;
+    }
+  }
+
+  private isLocalServerUrl(): boolean {
+    const url = this.parseServerUrl();
+    if (!url) {
+      return false;
+    }
+
+    return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(url.hostname);
+  }
+
+  private mapLocalModel(model: LMStudioLocalModel, loaded: boolean): LMStudioModel {
+    return {
+      id: model.modelKey,
+      object: 'model',
+      owned_by: model.publisher || 'unknown',
+      loaded,
+      type: model.type,
+      publisher: model.publisher,
+      display_name: model.displayName,
+      path: model.path,
+      format: model.format,
+      paramsString: model.paramsString,
+    };
+  }
+
+  private async waitForConnection(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await this.checkConnection()) {
+        return true;
+      }
+      await this.sleep(1000);
+    }
+
+    return this.checkConnection();
+  }
+
+  private async waitForModelAvailability(modelId: string, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const models = await this.getModels();
+      if (models.some((model) => model.id === modelId)) {
+        return true;
+      }
+      await this.sleep(1500);
+    }
+
+    const finalModels = await this.getModels();
+    return finalModels.some((model) => model.id === modelId);
   }
 
   // ── Connection check ──────────────────────────────────────────────────
@@ -109,6 +279,109 @@ export class LMStudioClient {
       this.log(`Error fetching models: ${e}`);
       return [];
     }
+  }
+
+  async getInstalledModels(): Promise<LMStudioModel[]> {
+    const rawModels = await this.execLmsJson<LMStudioLocalModel[]>(['ls', '--json'], this.getConfig().requestTimeout);
+    if (!Array.isArray(rawModels)) {
+      return [];
+    }
+
+    const loadedIds = await this.getLoadedModelIds();
+    const deduped = new Map<string, LMStudioModel>();
+
+    for (const rawModel of rawModels) {
+      if (!rawModel?.modelKey || rawModel.type === 'embedding') {
+        continue;
+      }
+
+      if (deduped.has(rawModel.modelKey)) {
+        continue;
+      }
+
+      deduped.set(rawModel.modelKey, this.mapLocalModel(rawModel, loadedIds.has(rawModel.modelKey)));
+    }
+
+    const models = Array.from(deduped.values());
+    this.log(`Found ${models.length} installed LM Studio model(s)`);
+    return models;
+  }
+
+  async getLoadedModelIds(): Promise<Set<string>> {
+    const rawModels = await this.execLmsJson<LMStudioLocalModel[]>(['ps', '--json'], this.getConfig().requestTimeout);
+    if (!Array.isArray(rawModels)) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      rawModels
+        .map((model) => model.modelKey)
+        .filter((modelKey): modelKey is string => Boolean(modelKey)),
+    );
+  }
+
+  async ensureServerRunning(): Promise<boolean> {
+    if (await this.checkConnection()) {
+      return true;
+    }
+
+    if (!this.isLocalServerUrl()) {
+      this.log('Skipping CLI auto-start because the configured server URL is not local');
+      return false;
+    }
+
+    const cliPath = await this.resolveCliPath();
+    if (!cliPath) {
+      return false;
+    }
+
+    await this.execLms(['daemon', 'up', '--json'], 15000);
+
+    const serverStatus = await this.execLmsJson<{ running?: boolean; port?: number }>(['server', 'status', '--json'], 5000);
+    if (!serverStatus?.running) {
+      const url = this.parseServerUrl();
+      const args = ['server', 'start', '--port', String(url?.port || 1234)];
+      if (url && !['localhost', '127.0.0.1'].includes(url.hostname)) {
+        args.push('--bind', url.hostname);
+      }
+
+      const spawned = await this.spawnDetachedLms(args);
+      if (!spawned) {
+        return false;
+      }
+    }
+
+    const timeoutMs = Math.max(this.getStartupWaitMs(), 1000) + 15000;
+    return this.waitForConnection(timeoutMs);
+  }
+
+  async stopServer(): Promise<boolean> {
+    const result = await this.execLms(['server', 'stop'], 30000);
+    if (result.exitCode !== 0) {
+      return false;
+    }
+
+    await this.sleep(1000);
+    return !(await this.checkConnection());
+  }
+
+  async ensureModelLoaded(modelId: string): Promise<boolean> {
+    const serverReady = await this.ensureServerRunning();
+    if (!serverReady) {
+      this.log(`Cannot load model ${modelId} because the LM Studio server is unavailable`);
+      return false;
+    }
+
+    const loadedModelIds = await this.getLoadedModelIds();
+    if (!loadedModelIds.has(modelId)) {
+      this.log(`Loading model on demand: ${modelId}`);
+      const loadResult = await this.execLms(['load', modelId, '-y'], Math.max(this.getConfig().requestTimeout, 10 * 60 * 1000));
+      if (loadResult.exitCode !== 0) {
+        return false;
+      }
+    }
+
+    return this.waitForModelAvailability(modelId, Math.max(this.getConfig().requestTimeout, 10 * 60 * 1000));
   }
 
   // ── Streaming chat completion ─────────────────────────────────────────

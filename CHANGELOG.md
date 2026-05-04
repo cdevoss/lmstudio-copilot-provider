@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Added LM Studio CLI-backed startup so the extension can auto-start the daemon/server without requiring a manual command
+- Switched model discovery to include installed local models from `lms ls --json`, not just models already loaded into the server
+- Added lazy model loading so a model selected in Copilot Chat is loaded on the first prompt automatically
+
+## [0.1.9] - 2026-05-03
+
+### Changed
+
+- Switched the extension marketplace icon to the new LM Studio logo asset
+
 ## [0.1.8] - 2026-04-28
 
 ### Added

@@ -14,13 +14,16 @@ Run local LM Studio models inside VS Code Copilot Chat with streaming responses,
 
 - Adds LM Studio-hosted chat models to the Copilot Chat model picker
 - Streams responses from LM Studio into VS Code chat
+- Discovers LM Studio models installed on disk even before they are loaded into memory
 - Exposes a small built-in toolset for terminal and filesystem actions
 - Supports tool-calling friendly local models with configurable tool budgeting
 - Supports optional image generation through either A1111 or DALL-E-compatible APIs
 
 ## Features
 
-- 🔌 **Auto-discovery**: Automatically detects models loaded in LM Studio
+- 🔌 **Auto-discovery**: Automatically detects models installed in LM Studio and surfaces them in the picker
+- 🚀 **Zero-touch startup**: Automatically starts the LM Studio daemon/server when possible
+- 💤 **Lazy loading**: Loads the selected model on the first prompt instead of requiring a model to be preloaded
 - 💬 **Chat Integration**: Use LM Studio models directly in VS Code's chat interface
 - 🔄 **Streaming**: Real-time streaming responses
 - 🛠️ **Tool Calling**: Built-in terminal, file, directory, search, and image generation tools
@@ -31,18 +34,17 @@ Run local LM Studio models inside VS Code Copilot Chat with streaming responses,
 ## Requirements
 
 - VS Code 1.104.0 or later
-- [LM Studio](https://lmstudio.ai/) running with a model loaded
+- [LM Studio](https://lmstudio.ai/) installed locally
 - LM Studio's local server enabled (default: `http://localhost:1234`)
 
 ## Setup
 
 1. Install and open LM Studio
-2. Load a model in LM Studio
-3. Start the local server in LM Studio (usually enabled by default)
-4. Install this extension in VS Code
-5. (Optional) Set `lmstudio-copilot.launchCommand` (for example: `lms server start`)
-6. Open the Command Palette and run "LM Studio: Start Server in Integrated Terminal"
-7. Run "LM Studio: Refresh Available Models"
+2. Make sure the `lms` CLI is available in your shell (`lms --help`)
+3. Install this extension in VS Code
+4. Open the Copilot Chat model picker
+5. Select any LM Studio model shown there
+6. Send your first prompt and the extension will load that model automatically if needed
 
 ## Extension Settings
 
@@ -50,9 +52,10 @@ This extension contributes the following settings:
 
 - `lmstudio-copilot.serverUrl`: LM Studio server URL (default: `http://localhost:1234`)
 - `lmstudio-copilot.apiKey`: Optional API key for LM Studio-compatible servers
-- `lmstudio-copilot.launchCommand`: Command to launch LM Studio server in integrated terminal (example: `lms server start`)
-- `lmstudio-copilot.terminalName`: Terminal name used to run the server (default: `LM Studio Server`)
-- `lmstudio-copilot.autoStartServer`: Auto-run `launchCommand` when extension activates (default: `false`)
+- `lmstudio-copilot.cliPath`: Path to the `lms` CLI (default: `lms`)
+- `lmstudio-copilot.launchCommand`: Fallback terminal command if CLI auto-start is unavailable
+- `lmstudio-copilot.terminalName`: Terminal name used only for the fallback launch path (default: `LM Studio Server`)
+- `lmstudio-copilot.autoStartServer`: Auto-start the LM Studio daemon/server when the extension activates (default: `true`)
 - `lmstudio-copilot.startupWaitMs`: Wait time before connection check after terminal start (default: `3000`)
 - `lmstudio-copilot.enableTerminalTool`: Allow model-invoked terminal commands (default: `true`)
 - `lmstudio-copilot.terminalToolName`: Terminal name for model tool commands (default: `LM Studio Tool Terminal`)
@@ -76,11 +79,11 @@ This extension contributes the following settings:
 
 ## Usage
 
-1. Make sure LM Studio is running with a model loaded
+1. Make sure LM Studio is installed on the machine
 2. Open VS Code's Chat view (Ctrl+Shift+I or Cmd+Shift+I)
 3. Click on the model selector dropdown
 4. Select an LM Studio model (prefixed with "LM Studio")
-5. Start chatting!
+5. Start chatting. If that model is not loaded yet, the extension loads it before sending your first request.
 
 ### Let models run commands in the integrated terminal
 
@@ -142,8 +145,8 @@ Set `lmstudio-copilot.imageGenEndpointUrl` to your image server URL.
 
 ### Models not appearing
 
-- Make sure LM Studio is running
-- Make sure a model is loaded in LM Studio
+- Make sure `lms --help` works in your terminal
+- Make sure the models are installed in LM Studio on this machine
 - Check that the server URL is correct in settings
 - Run "LM Studio: Check Server Connection" to verify connectivity
 

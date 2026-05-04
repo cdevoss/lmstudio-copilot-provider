@@ -2,7 +2,7 @@
   "name": "lmstudio-copilot-provider",
   "displayName": "LM Studio for Copilot Chat",
   "description": "Use local LM Studio models inside VS Code Copilot Chat with streaming, tool calling, and optional image generation.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "publisher": "DanLambiase",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,7 @@
     "url": "https://github.com/yoy123/lmstudio-copilot-provider/issues"
   },
   "homepage": "https://github.com/yoy123/lmstudio-copilot-provider#readme",
-  "icon": "assets/icon.png",
+  "icon": "assets/lm-studio.png",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -50,27 +50,32 @@
         "lmstudio-copilot.autoRefreshModels": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically refresh available models on startup"
+          "description": "Automatically refresh available models on startup using both the LM Studio CLI and the local server"
         },
         "lmstudio-copilot.requestTimeout": {
           "type": "number",
           "default": 60000,
           "description": "Request timeout in milliseconds"
         },
+        "lmstudio-copilot.cliPath": {
+          "type": "string",
+          "default": "lms",
+          "description": "Path to the LM Studio CLI. The extension uses this to discover installed models, auto-start the server, and lazy-load models on first use."
+        },
         "lmstudio-copilot.launchCommand": {
           "type": "string",
           "default": "",
-          "description": "Command to launch LM Studio server in VS Code integrated terminal (example: lms server start)"
+          "description": "Fallback command to launch LM Studio in a VS Code terminal when the LM Studio CLI is unavailable"
         },
         "lmstudio-copilot.terminalName": {
           "type": "string",
           "default": "LM Studio Server",
-          "description": "Name of the integrated terminal used for LM Studio server"
+          "description": "Name of the integrated terminal used only when launchCommand fallback is needed"
         },
         "lmstudio-copilot.autoStartServer": {
           "type": "boolean",
-          "default": false,
-          "description": "Automatically run launchCommand in integrated terminal when extension starts"
+          "default": true,
+          "description": "Automatically ensure the LM Studio daemon and local server are running when the extension starts"
         },
         "lmstudio-copilot.enableTerminalTool": {
           "type": "boolean",
@@ -215,8 +220,7 @@
         "tags": [
           "terminal",
           "shell",
-          "command",
-          "execution"
+          "command"
         ],
         "inputSchema": {
           "type": "object",

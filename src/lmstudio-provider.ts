@@ -7,6 +7,7 @@ import { LMStudioModel, ChatMessage, ChatTool, ChatMessageContentPart } from './
  */
 interface LMStudioModelInfo extends vscode.LanguageModelChatInformation {
   lmstudioModelId: string;
+  isLoaded: boolean;
 }
 
 /**
@@ -61,13 +62,42 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
 
   async refreshModels(): Promise<void> {
     this.log('Refreshing models...');
-    const models = await this.client.getModels();
-    this.availableModels = models;
+    const [installedModels, liveModels] = await Promise.all([
+      this.client.getInstalledModels(),
+      this.client.getModels(),
+    ]);
 
-    if (models.length === 0) {
+    const mergedModels = new Map<string, LMStudioModel>();
+
+    for (const model of installedModels) {
+      mergedModels.set(model.id, model);
+    }
+
+    for (const model of liveModels) {
+      const existing = mergedModels.get(model.id);
+      mergedModels.set(model.id, {
+        ...existing,
+        ...model,
+        loaded: true,
+        display_name: model.display_name ?? existing?.display_name,
+        publisher: model.publisher ?? existing?.publisher,
+      });
+    }
+
+    this.availableModels = Array.from(mergedModels.values()).sort((left, right) => {
+      const leftLoaded = left.loaded ? 1 : 0;
+      const rightLoaded = right.loaded ? 1 : 0;
+      if (leftLoaded !== rightLoaded) {
+        return rightLoaded - leftLoaded;
+      }
+
+      return this.getDisplayName(left).localeCompare(this.getDisplayName(right));
+    });
+
+    if (this.availableModels.length === 0) {
       this.log('No models available from LM Studio');
     } else {
-      this.log(`Found ${models.length} model(s): ${models.map(m => m.id).join(', ')}`);
+      this.log(`Found ${this.availableModels.length} model(s): ${this.availableModels.map(m => m.id).join(', ')}`);
     }
 
     this._onDidChangeLanguageModelChatInformation.fire();
@@ -86,12 +116,13 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
 
     return this.availableModels.map(model => ({
       id: model.id,
-      name: this.formatModelName(model.id),
+      name: this.getDisplayName(model),
       family: 'lmstudio',
       version: '1.0.0',
       maxInputTokens: model.max_context_length || maxInputTokens,
       maxOutputTokens,
       lmstudioModelId: model.id,
+      isLoaded: Boolean(model.loaded),
       capabilities: {
         toolCalling: enableToolCalling,
         imageInput: model.capabilities?.vision ?? false,
@@ -112,6 +143,15 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
   ): Promise<void> {
     const modelId = model.lmstudioModelId;
     this.log(`Chat request for ${modelId} | ${messages.length} messages | ${options.tools?.length ?? 0} tools`);
+
+    const ready = await this.client.ensureModelLoaded(modelId);
+    if (!ready) {
+      throw new Error(`LM Studio could not load the selected model: ${modelId}`);
+    }
+
+    if (!model.isLoaded) {
+      await this.refreshModels();
+    }
 
     // Short-circuit: if the last message is a tool result from a "terminal"
     // tool (like image generation), just echo the result — don't send it
@@ -547,6 +587,10 @@ export class LMStudioProvider implements vscode.LanguageModelChatProvider<LMStud
       .split(' ')
       .map(w => w.charAt(0).toUpperCase() + w.slice(1))
       .join(' ');
+  }
+
+  private getDisplayName(model: LMStudioModel): string {
+    return model.display_name?.trim() || this.formatModelName(model.id);
   }
 
   getAvailableModels(): LMStudioModel[] {

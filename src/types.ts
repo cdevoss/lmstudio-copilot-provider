@@ -17,6 +17,10 @@ export interface LMStudioModel {
   object: string;
   owned_by: string;
   created?: number;
+  loaded?: boolean;
+  path?: string;
+  format?: string;
+  paramsString?: string;
   // Additional fields from LM Studio v1 API
   type?: string;
   publisher?: string;
@@ -43,6 +47,23 @@ export interface LMStudioRawModel {
     vision?: boolean;
     trained_for_tool_use?: boolean;
   };
+  [prop: string]: unknown;
+}
+
+/**
+ * Model metadata returned by `lms ls --json` / `lms ps --json`
+ */
+export interface LMStudioLocalModel {
+  type?: string;
+  modelKey: string;
+  format?: string;
+  displayName?: string;
+  publisher?: string;
+  path?: string;
+  sizeBytes?: number;
+  indexedModelIdentifier?: string;
+  deviceIdentifier?: string;
+  paramsString?: string;
   [prop: string]: unknown;
 }
 

@@ -44,7 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const launchCommand = config.get<string>('launchCommand', '').trim();
 
     if (!launchCommand) {
-      const message = 'Set lmstudio-copilot.launchCommand in settings first (example: lms server start).';
+      const message = 'LM Studio CLI auto-start is unavailable and no fallback launch command is configured.';
       outputChannel.appendLine(`⚠️ ${message}`);
       vscode.window.showWarningMessage(message);
       return false;
@@ -66,6 +66,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
     outputChannel.appendLine('⚠️ LM Studio server not reachable yet after terminal launch');
     return false;
+  };
+
+  const ensureServerRunning = async (): Promise<boolean> => {
+    outputChannel.appendLine('Ensuring LM Studio server is running...');
+
+    const startedViaCli = await client.ensureServerRunning();
+    if (startedViaCli) {
+      outputChannel.appendLine('✅ LM Studio server is reachable');
+      return true;
+    }
+
+    outputChannel.appendLine('CLI-based auto-start unavailable, trying launchCommand fallback');
+    return startServerInTerminal();
   };
 
   const stopServerTerminal = (): void => {
@@ -100,16 +113,24 @@ export async function activate(context: vscode.ExtensionContext) {
   // Register commands
   context.subscriptions.push(
     vscode.commands.registerCommand('lmstudio-copilot.startServer', async () => {
-      const started = await startServerInTerminal();
+      const started = await ensureServerRunning();
       if (started) {
-        vscode.window.showInformationMessage('LM Studio server launched in integrated terminal');
+        vscode.window.showInformationMessage('LM Studio server is running');
         await provider?.refreshModels();
       }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('lmstudio-copilot.stopServer', () => {
+    vscode.commands.registerCommand('lmstudio-copilot.stopServer', async () => {
+      const stopped = await client.stopServer();
+      if (stopped) {
+        lmStudioTerminal?.dispose();
+        lmStudioTerminal = undefined;
+        vscode.window.showInformationMessage('LM Studio server stopped.');
+        return;
+      }
+
       stopServerTerminal();
     })
   );
@@ -147,18 +168,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Auto-refresh models on startup if enabled
   const config = vscode.workspace.getConfiguration('lmstudio-copilot');
-  if (config.get<boolean>('autoStartServer', false)) {
-    outputChannel.appendLine('Auto-start server enabled, launching LM Studio in integrated terminal...');
-    await startServerInTerminal();
+  if (config.get<boolean>('autoStartServer', true)) {
+    outputChannel.appendLine('Auto-start server enabled, ensuring LM Studio is running...');
+    await ensureServerRunning();
   }
 
   if (config.get<boolean>('autoRefreshModels', true)) {
-    outputChannel.appendLine('Auto-refresh enabled, will refresh models in 2 seconds...');
-    // Delay to let LM Studio start if launched with VS Code
-    setTimeout(async () => {
-      outputChannel.appendLine('Auto-refreshing models now...');
-      await provider?.refreshModels();
-    }, 2000);
+    outputChannel.appendLine('Auto-refresh enabled, refreshing models now...');
+    await provider?.refreshModels();
   }
 
   outputChannel.appendLine('LM Studio Copilot Provider activated');
