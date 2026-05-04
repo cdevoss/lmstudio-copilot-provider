@@ -22,11 +22,10 @@ Install from the VS Code Marketplace:
 
 ## Quick Start
 
-1. Install and open LM Studio.
-2. Install this extension.
-3. Open Copilot Chat.
-4. Pick an LM Studio model.
-5. Send a prompt.
+1. Install this extension.
+2. Open Copilot Chat.
+3. Pick an LM Studio model.
+4. Send a prompt.
 
 No separate CLI install, PATH setup, or manual model preload should be required.
 

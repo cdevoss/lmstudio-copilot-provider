@@ -6,14 +6,14 @@ The format is based on Keep a Changelog, and this project adheres loosely to Sem
 
 ## [Unreleased]
 
-### Changed
+### Change 11
 
 - Simplified the README to focus on the actual end-user setup and usage path
 - Improved LM Studio CLI detection so the extension also checks common install locations instead of requiring `lms` to be on `PATH`
 
 ## [0.1.10] - 2026-05-04
 
-### Changed
+### Change 10
 
 - Added LM Studio CLI-backed startup so the extension can auto-start the daemon/server without requiring a manual command
 - Switched model discovery to include installed local models from `lms ls --json`, not just models already loaded into the server
@@ -22,7 +22,7 @@ The format is based on Keep a Changelog, and this project adheres loosely to Sem
 
 ## [0.1.9] - 2026-05-03
 
-### Changed
+### Change 9
 
 - Switched the extension marketplace icon to the new LM Studio logo asset
 
@@ -35,13 +35,13 @@ The format is based on Keep a Changelog, and this project adheres loosely to Sem
 
 ## [0.1.7] - 2026-04-03
 
-### Changed
+### Change 8
 
 - (Release placeholder — identical to 0.1.6 with changelog update)
 
 ## [0.1.6] - 2026-04-03
 
-### Changed
+### Change 7
 
 - Replaced Qwen-specific model-name sniffing with two user-controlled settings:
   - `lmstudio-copilot.injectSystemPrompt` — toggle the extension's system prompt injection (default: on)
@@ -83,8 +83,6 @@ The format is based on Keep a Changelog, and this project adheres loosely to Sem
 - Wired the icon into the extension manifest and VSIX package output
 
 ## [0.1.0] - 2026-03-18
-
-### Added
 
 - LM Studio model discovery and Copilot Chat provider integration
 - Streaming chat completions through the LM Studio OpenAI-compatible API
