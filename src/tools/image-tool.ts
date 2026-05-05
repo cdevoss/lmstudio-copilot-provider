@@ -41,7 +41,7 @@ function getConfig(): Config {
     defaultHeight: cfg.get<number>('imageGenHeight', 1024),
     defaultSteps: cfg.get<number>('imageGenSteps', 20),
     outputDir: cfg.get<string>('imageGenOutputDir', ''),
-    apiKey: cfg.get<string>('apiKey', ''),
+    apiKey: cfg.get<string>('imageGenApiKey', '').trim(),
   };
 }
 
@@ -55,7 +55,7 @@ Get an API key from https://platform.openai.com then add to settings.json:
 {
   "lmstudio-copilot.imageGenBackend": "dalle",
   "lmstudio-copilot.imageGenEndpointUrl": "https://api.openai.com",
-  "lmstudio-copilot.apiKey": "sk-...",
+  "lmstudio-copilot.imageGenApiKey": "sk-...",
   "lmstudio-copilot.imageGenModel": "dall-e-3"
 }
 
@@ -251,6 +251,12 @@ export function createImageGenTool(
 
       if (!prompt?.trim()) {
         return makeResult('No prompt provided.');
+      }
+
+      if (config.backend === 'dalle' && !config.apiKey) {
+        return makeResult(
+          'Image generation API key is not configured. Set lmstudio-copilot.imageGenApiKey for the DALL-E/OpenAI-compatible image backend.'
+        );
       }
 
       // Guard: endpoint must be configured and must not be LM Studio's server

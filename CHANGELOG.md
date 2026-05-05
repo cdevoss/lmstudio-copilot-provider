@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.13] - 2026-05-05
+
+### Change 13
+
+- Added a dedicated `lmstudio-copilot.imageGenApiKey` setting for DALL-E and other image-generation backends
+- Removed the image-tool fallback to `lmstudio-copilot.apiKey` so LM Studio chat auth and image backend auth stay fully separate
+- Updated the README and tool setup guidance to document the separate image-generation credential path
+
 ## [0.1.12] - 2026-05-04
 
 ### Change 12

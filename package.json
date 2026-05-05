@@ -2,7 +2,7 @@
   "name": "lmstudio-copilot-provider",
   "displayName": "LM Studio for Copilot Chat",
   "description": "Use local LM Studio models inside VS Code Copilot Chat with streaming, tool calling, and optional image generation.",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "publisher": "DanLambiase",
   "license": "MIT",
   "repository": {
@@ -157,6 +157,11 @@
           "type": "string",
           "default": "",
           "description": "Base URL for the image generation server. LM Studio does NOT have an image generation endpoint — leave blank to see setup instructions. For DALL-E (OpenAI): https://api.openai.com. For A1111/Stable Diffusion: typically http://localhost:7860."
+        },
+        "lmstudio-copilot.imageGenApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the image generation backend. Use this for OpenAI DALL-E or another OpenAI-compatible image API. If empty, the extension falls back to lmstudio-copilot.apiKey."
         },
         "lmstudio-copilot.imageGenModel": {
           "type": "string",

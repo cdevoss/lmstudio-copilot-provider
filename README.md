@@ -53,6 +53,8 @@ Most users can leave the defaults alone. These are the settings that matter most
 - `lmstudio-copilot.launchCommand`: Fallback terminal command if CLI-based startup is unavailable
 - `lmstudio-copilot.enableToolCalling`: Enable tool calling for supported models
 - `lmstudio-copilot.maxTools`: Limit the number of tools exposed per request
+- `lmstudio-copilot.imageGenEndpointUrl`: Base URL for DALL-E/OpenAI-compatible or A1111 image generation
+- `lmstudio-copilot.imageGenApiKey`: Dedicated API key for image generation backends such as OpenAI DALL-E
 
 ## Commands
 
@@ -69,6 +71,21 @@ Select an LM Studio model in Copilot Chat and start chatting. The extension will
 
 - Tool calling for supported local models
 - Optional image generation through A1111 or DALL-E-compatible endpoints
+
+### DALL-E Setup
+
+Use these settings for OpenAI image generation:
+
+```json
+{
+	"lmstudio-copilot.imageGenBackend": "dalle",
+	"lmstudio-copilot.imageGenEndpointUrl": "https://api.openai.com",
+	"lmstudio-copilot.imageGenApiKey": "sk-...",
+	"lmstudio-copilot.imageGenModel": "dall-e-3"
+}
+```
+
+`lmstudio-copilot.imageGenApiKey` is completely separate from `lmstudio-copilot.apiKey`. Chat requests keep using the LM Studio server key, and image generation uses only the dedicated image backend key.
 
 ## Troubleshooting
 
