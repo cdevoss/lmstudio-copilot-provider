@@ -161,7 +161,7 @@
         "lmstudio-copilot.imageGenApiKey": {
           "type": "string",
           "default": "",
-          "description": "API key for the image generation backend. Use this for OpenAI DALL-E or another OpenAI-compatible image API. If empty, the extension falls back to lmstudio-copilot.apiKey."
+          "description": "API key for the image generation backend. Use this for OpenAI DALL-E or another OpenAI-compatible image API. This key is separate from the LM Studio chat API key."
         },
         "lmstudio-copilot.imageGenModel": {
           "type": "string",
