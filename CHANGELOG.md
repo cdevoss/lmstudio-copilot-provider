@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.15] - 2026-05-05
+
+### Change 15
+
+- Published the Settings UI fix that reorganizes extension configuration into explicit sections
+- Ensured the separate image generation API key surfaces under a dedicated `Image Generation` settings category
+- Kept LM Studio chat auth and image backend auth clearly separated in the contributed settings UI
+
 ## [0.1.14] - 2026-05-05
 
 ### Change 14
