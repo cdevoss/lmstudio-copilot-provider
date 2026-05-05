@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres loosely to Semantic Versioning.
 
+## [0.1.14] - 2026-05-05
+
+### Change 14
+
+- Reorganized the extension settings into explicit categories so the Settings UI surfaces image-generation options more clearly
+- Added a dedicated `Image Generation` settings section so `lmstudio-copilot.imageGenApiKey` has an obvious place in the Settings editor
+- Marked both API-key settings as machine-local to keep them out of sync and make their usage clearer in the UI
+
 ## [0.1.13] - 2026-05-05
 
 ### Change 13

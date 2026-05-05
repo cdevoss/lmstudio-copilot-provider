@@ -2,7 +2,7 @@
   "name": "lmstudio-copilot-provider",
   "displayName": "LM Studio for Copilot Chat",
   "description": "Use local LM Studio models inside VS Code Copilot Chat with streaming, tool calling, and optional image generation.",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "publisher": "DanLambiase",
   "license": "MIT",
   "repository": {
@@ -34,162 +34,211 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "LM Studio Copilot Provider",
-      "properties": {
-        "lmstudio-copilot.serverUrl": {
-          "type": "string",
-          "default": "http://localhost:1234",
-          "description": "LM Studio server URL"
-        },
-        "lmstudio-copilot.apiKey": {
-          "type": "string",
-          "default": "",
-          "description": "API key for LM Studio server authentication"
-        },
-        "lmstudio-copilot.autoRefreshModels": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically refresh available models on startup using both the LM Studio CLI and the local server"
-        },
-        "lmstudio-copilot.requestTimeout": {
-          "type": "number",
-          "default": 60000,
-          "description": "Request timeout in milliseconds"
-        },
-        "lmstudio-copilot.cliPath": {
-          "type": "string",
-          "default": "lms",
-          "description": "Path to the LM Studio CLI. The extension uses this to discover installed models, auto-start the server, and lazy-load models on first use."
-        },
-        "lmstudio-copilot.launchCommand": {
-          "type": "string",
-          "default": "",
-          "description": "Fallback command to launch LM Studio in a VS Code terminal when the LM Studio CLI is unavailable"
-        },
-        "lmstudio-copilot.terminalName": {
-          "type": "string",
-          "default": "LM Studio Server",
-          "description": "Name of the integrated terminal used only when launchCommand fallback is needed"
-        },
-        "lmstudio-copilot.autoStartServer": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically ensure the LM Studio daemon and local server are running when the extension starts"
-        },
-        "lmstudio-copilot.enableTerminalTool": {
-          "type": "boolean",
-          "default": true,
-          "description": "Allow LM Studio model tool calls to run commands in VS Code integrated terminal"
-        },
-        "lmstudio-copilot.terminalToolName": {
-          "type": "string",
-          "default": "LM Studio Tool Terminal",
-          "description": "Integrated terminal name used by model tool commands"
-        },
-        "lmstudio-copilot.terminalToolTimeout": {
-          "type": "number",
-          "default": 30000,
-          "description": "Timeout in milliseconds for model-invoked terminal commands"
-        },
-        "lmstudio-copilot.startupWaitMs": {
-          "type": "number",
-          "default": 3000,
-          "description": "Milliseconds to wait before checking LM Studio connection after server start"
-        },
-        "lmstudio-copilot.maxInputTokens": {
-          "type": "number",
-          "default": 131072,
-          "description": "Maximum input tokens (context window size). Default is 128k."
-        },
-        "lmstudio-copilot.maxOutputTokens": {
-          "type": "number",
-          "default": 16384,
-          "description": "Maximum output tokens. Default is 16k."
-        },
-        "lmstudio-copilot.maxTools": {
-          "type": "number",
-          "default": 20,
-          "description": "Maximum number of tools to send to the model per request. Local models struggle with many tools (86+ is common with MCP servers). Tools used in the current conversation are always included; the rest are prioritized by name simplicity. Set to 0 for no limit."
-        },
-        "lmstudio-copilot.enableToolCalling": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable tool calling support for models that support it (e.g., Qwen, Llama 3.1+, Mistral)."
-        },
-        "lmstudio-copilot.injectSystemPrompt": {
-          "type": "boolean",
-          "default": true,
-          "description": "Prepend a system message with coding-assistant instructions. Disable if your LM Studio chat template already includes system instructions."
-        },
-        "lmstudio-copilot.enableThinking": {
-          "type": "boolean",
-          "default": true,
-          "description": "Allow models to use extended thinking / chain-of-thought (enable_thinking parameter). Disable for models that produce noisy <think> blocks or error on the parameter."
-        },
-        "lmstudio-copilot.reasoningEffort": {
-          "type": "string",
-          "enum": [
-            "default",
-            "low",
-            "medium",
-            "high"
-          ],
-          "enumDescriptions": [
-            "Do not send a reasoning_effort parameter — the model uses its built-in default.",
-            "Minimal reasoning trace. Faster responses, lower token usage.",
-            "Balanced reasoning. Good for most tasks.",
-            "Maximum reasoning depth. Best for complex problems, uses more tokens."
-          ],
-          "default": "default",
-          "description": "Reasoning effort level sent to models that support the reasoning_effort parameter (e.g. o1, o3, QwQ). Has no effect on models that do not support the parameter."
-        },
-        "lmstudio-copilot.imageGenBackend": {
-          "type": "string",
-          "enum": [
-            "dalle",
-            "a1111"
-          ],
-          "default": "dalle",
-          "description": "Image generation backend. 'dalle' = OpenAI DALL-E compatible API (also works with LM Studio image models). 'a1111' = Automatic1111 / Stable Diffusion Web UI."
-        },
-        "lmstudio-copilot.imageGenEndpointUrl": {
-          "type": "string",
-          "default": "",
-          "description": "Base URL for the image generation server. LM Studio does NOT have an image generation endpoint — leave blank to see setup instructions. For DALL-E (OpenAI): https://api.openai.com. For A1111/Stable Diffusion: typically http://localhost:7860."
-        },
-        "lmstudio-copilot.imageGenApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "API key for the image generation backend. Use this for OpenAI DALL-E or another OpenAI-compatible image API. This key is separate from the LM Studio chat API key."
-        },
-        "lmstudio-copilot.imageGenModel": {
-          "type": "string",
-          "default": "dall-e-3",
-          "description": "Image model to use for DALL-E backend (e.g. dall-e-3, dall-e-2)."
-        },
-        "lmstudio-copilot.imageGenWidth": {
-          "type": "number",
-          "default": 1024,
-          "description": "Default image width in pixels."
-        },
-        "lmstudio-copilot.imageGenHeight": {
-          "type": "number",
-          "default": 1024,
-          "description": "Default image height in pixels."
-        },
-        "lmstudio-copilot.imageGenSteps": {
-          "type": "number",
-          "default": 20,
-          "description": "Default number of diffusion steps (A1111 backend only)."
-        },
-        "lmstudio-copilot.imageGenOutputDir": {
-          "type": "string",
-          "default": "",
-          "description": "Directory to save generated images. Workspace-relative or absolute. Defaults to 'generated-images/' inside the workspace."
+    "configuration": [
+      {
+        "id": "lmstudio-copilot",
+        "title": "LM Studio",
+        "order": 1,
+        "properties": {
+          "lmstudio-copilot.serverUrl": {
+            "type": "string",
+            "default": "http://localhost:1234",
+            "order": 1,
+            "description": "LM Studio server URL"
+          },
+          "lmstudio-copilot.apiKey": {
+            "type": "string",
+            "default": "",
+            "scope": "machine",
+            "ignoreSync": true,
+            "order": 2,
+            "markdownDescription": "API key for LM Studio server authentication. This is used for chat completions against the LM Studio server and is separate from #lmstudio-copilot.imageGenApiKey#."
+          },
+          "lmstudio-copilot.autoRefreshModels": {
+            "type": "boolean",
+            "default": true,
+            "order": 3,
+            "description": "Automatically refresh available models on startup using both the LM Studio CLI and the local server"
+          },
+          "lmstudio-copilot.requestTimeout": {
+            "type": "number",
+            "default": 60000,
+            "order": 4,
+            "description": "Request timeout in milliseconds"
+          },
+          "lmstudio-copilot.cliPath": {
+            "type": "string",
+            "default": "lms",
+            "order": 5,
+            "description": "Path to the LM Studio CLI. The extension uses this to discover installed models, auto-start the server, and lazy-load models on first use."
+          },
+          "lmstudio-copilot.launchCommand": {
+            "type": "string",
+            "default": "",
+            "order": 6,
+            "description": "Fallback command to launch LM Studio in a VS Code terminal when the LM Studio CLI is unavailable"
+          },
+          "lmstudio-copilot.terminalName": {
+            "type": "string",
+            "default": "LM Studio Server",
+            "order": 7,
+            "description": "Name of the integrated terminal used only when launchCommand fallback is needed"
+          },
+          "lmstudio-copilot.autoStartServer": {
+            "type": "boolean",
+            "default": true,
+            "order": 8,
+            "description": "Automatically ensure the LM Studio daemon and local server are running when the extension starts"
+          },
+          "lmstudio-copilot.startupWaitMs": {
+            "type": "number",
+            "default": 3000,
+            "order": 9,
+            "description": "Milliseconds to wait before checking LM Studio connection after server start"
+          }
+        }
+      },
+      {
+        "id": "lmstudio-copilot.chat",
+        "title": "Chat and Tools",
+        "order": 2,
+        "properties": {
+          "lmstudio-copilot.enableTerminalTool": {
+            "type": "boolean",
+            "default": true,
+            "order": 1,
+            "description": "Allow LM Studio model tool calls to run commands in VS Code integrated terminal"
+          },
+          "lmstudio-copilot.terminalToolName": {
+            "type": "string",
+            "default": "LM Studio Tool Terminal",
+            "order": 2,
+            "description": "Integrated terminal name used by model tool commands"
+          },
+          "lmstudio-copilot.terminalToolTimeout": {
+            "type": "number",
+            "default": 30000,
+            "order": 3,
+            "description": "Timeout in milliseconds for model-invoked terminal commands"
+          },
+          "lmstudio-copilot.maxInputTokens": {
+            "type": "number",
+            "default": 131072,
+            "order": 4,
+            "description": "Maximum input tokens (context window size). Default is 128k."
+          },
+          "lmstudio-copilot.maxOutputTokens": {
+            "type": "number",
+            "default": 16384,
+            "order": 5,
+            "description": "Maximum output tokens. Default is 16k."
+          },
+          "lmstudio-copilot.maxTools": {
+            "type": "number",
+            "default": 20,
+            "order": 6,
+            "description": "Maximum number of tools to send to the model per request. Local models struggle with many tools (86+ is common with MCP servers). Tools used in the current conversation are always included; the rest are prioritized by name simplicity. Set to 0 for no limit."
+          },
+          "lmstudio-copilot.enableToolCalling": {
+            "type": "boolean",
+            "default": true,
+            "order": 7,
+            "description": "Enable tool calling support for models that support it (e.g., Qwen, Llama 3.1+, Mistral)."
+          },
+          "lmstudio-copilot.injectSystemPrompt": {
+            "type": "boolean",
+            "default": true,
+            "order": 8,
+            "description": "Prepend a system message with coding-assistant instructions. Disable if your LM Studio chat template already includes system instructions."
+          },
+          "lmstudio-copilot.enableThinking": {
+            "type": "boolean",
+            "default": true,
+            "order": 9,
+            "description": "Allow models to use extended thinking / chain-of-thought (enable_thinking parameter). Disable for models that produce noisy <think> blocks or error on the parameter."
+          },
+          "lmstudio-copilot.reasoningEffort": {
+            "type": "string",
+            "enum": [
+              "default",
+              "low",
+              "medium",
+              "high"
+            ],
+            "enumDescriptions": [
+              "Do not send a reasoning_effort parameter — the model uses its built-in default.",
+              "Minimal reasoning trace. Faster responses, lower token usage.",
+              "Balanced reasoning. Good for most tasks.",
+              "Maximum reasoning depth. Best for complex problems, uses more tokens."
+            ],
+            "default": "default",
+            "order": 10,
+            "description": "Reasoning effort level sent to models that support the reasoning_effort parameter (e.g. o1, o3, QwQ). Has no effect on models that do not support the parameter."
+          }
+        }
+      },
+      {
+        "id": "lmstudio-copilot.image",
+        "title": "Image Generation",
+        "order": 3,
+        "properties": {
+          "lmstudio-copilot.imageGenBackend": {
+            "type": "string",
+            "enum": [
+              "dalle",
+              "a1111"
+            ],
+            "default": "dalle",
+            "order": 1,
+            "description": "Image generation backend. 'dalle' = OpenAI DALL-E compatible API (also works with LM Studio image models). 'a1111' = Automatic1111 / Stable Diffusion Web UI."
+          },
+          "lmstudio-copilot.imageGenEndpointUrl": {
+            "type": "string",
+            "default": "",
+            "order": 2,
+            "description": "Base URL for the image generation server. LM Studio does NOT have an image generation endpoint — leave blank to see setup instructions. For DALL-E (OpenAI): https://api.openai.com. For A1111/Stable Diffusion: typically http://localhost:7860."
+          },
+          "lmstudio-copilot.imageGenApiKey": {
+            "type": "string",
+            "default": "",
+            "scope": "machine",
+            "ignoreSync": true,
+            "order": 3,
+            "markdownDescription": "API key for the image generation backend. Use this for OpenAI DALL-E or another OpenAI-compatible image API. This key is separate from #lmstudio-copilot.apiKey# used for LM Studio chat completions."
+          },
+          "lmstudio-copilot.imageGenModel": {
+            "type": "string",
+            "default": "dall-e-3",
+            "order": 4,
+            "description": "Image model to use for DALL-E backend (e.g. dall-e-3, dall-e-2)."
+          },
+          "lmstudio-copilot.imageGenWidth": {
+            "type": "number",
+            "default": 1024,
+            "order": 5,
+            "description": "Default image width in pixels."
+          },
+          "lmstudio-copilot.imageGenHeight": {
+            "type": "number",
+            "default": 1024,
+            "order": 6,
+            "description": "Default image height in pixels."
+          },
+          "lmstudio-copilot.imageGenSteps": {
+            "type": "number",
+            "default": 20,
+            "order": 7,
+            "description": "Default number of diffusion steps (A1111 backend only)."
+          },
+          "lmstudio-copilot.imageGenOutputDir": {
+            "type": "string",
+            "default": "",
+            "order": 8,
+            "description": "Directory to save generated images. Workspace-relative or absolute. Defaults to 'generated-images/' inside the workspace."
+          }
         }
       }
-    },
+    ],
     "commands": [
       {
         "command": "lmstudio-copilot.refreshModels",
